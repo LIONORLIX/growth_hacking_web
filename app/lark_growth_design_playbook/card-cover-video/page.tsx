@@ -169,8 +169,17 @@ export default function CardCoverVideoPage() {
   }, []);
 
   const recordCurrentToBlob = useCallback(async (): Promise<{ blob: Blob; ext: "mp4" | "webm"; mimeBase: string }> => {
-    const canvas = mountRef.current?.getCanvas();
-    if (!canvas) throw new Error("画布未就绪");
+    const webglCanvas = mountRef.current?.getCanvas();
+    if (!webglCanvas) throw new Error("画布未就绪");
+    
+    // Create an invisible 2D canvas to intercept rendering.
+    // Chromium has a known bug where WebGL captureStream produces empty or single-frame streams.
+    const proxyCanvas = document.createElement("canvas");
+    proxyCanvas.width = webglCanvas.width;
+    proxyCanvas.height = webglCanvas.height;
+    const ctx = proxyCanvas.getContext("2d");
+    if (!ctx) throw new Error("无法初始化 2D 录制代理画布");
+
     const mime = pickVideoMimeType(exportFormat);
     if (!mime) {
       if (exportFormat === "mp4") throw new Error("当前浏览器不支持 MP4(H.264) 录制");
@@ -178,20 +187,53 @@ export default function CardCoverVideoPage() {
       throw new Error("当前浏览器不支持 MP4/WebM 录制");
     }
 
-    const stream = canvas.captureStream(fps);
+    const stream = proxyCanvas.captureStream(fps);
     const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+
     const chunks: Blob[] = [];
     rec.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.push(e.data);
     };
+
+    let keepDrawing = true;
+    const drawLoop = () => {
+      if (!keepDrawing) return;
+      ctx.drawImage(webglCanvas, 0, 0);
+      requestAnimationFrame(drawLoop);
+    };
+
     const stopped = new Promise<void>((resolve, reject) => {
-      rec.onerror = () => reject(new Error("MediaRecorder 错误"));
-      rec.onstop = () => resolve();
+      rec.onerror = () => { keepDrawing = false; reject(new Error("MediaRecorder 错误")); };
+      rec.onstop = () => { keepDrawing = false; resolve(); };
     });
+
+    requestAnimationFrame(drawLoop);
     rec.start(100);
-    await new Promise((r) => setTimeout(r, Math.max(200, durationSec * 1000)));
+
+    // Wait based on exact cumulative foreground duration, accurately fixing duration inaccuracies
+    // caused by standard setTimeout when tab background rendering pauses.
+    await new Promise<void>((resolve) => {
+      let elapsedMs = 0;
+      let lastLoopTime = performance.now();
+      
+      const check = (now: DOMHighResTimeStamp) => {
+        if (!keepDrawing) return resolve();
+        const delta = Math.min(100, now - lastLoopTime); // Exclude large background lag gaps
+        lastLoopTime = now;
+        elapsedMs += delta;
+        if (elapsedMs >= durationSec * 1000) {
+          resolve();
+        } else {
+          requestAnimationFrame(check);
+        }
+      };
+      requestAnimationFrame((now) => { lastLoopTime = now; requestAnimationFrame(check); });
+    });
+
     rec.stop();
+    keepDrawing = false;
     await stopped;
+
     const mimeBase = mime.split(";")[0] || "video/webm";
     const ext: "mp4" | "webm" = mimeBase.includes("mp4") ? "mp4" : "webm";
     return { blob: new Blob(chunks, { type: mimeBase }), ext, mimeBase };

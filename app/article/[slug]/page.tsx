@@ -1275,6 +1275,8 @@ export default function ArticlePage() {
   const [articleThemeHex, setArticleThemeHex] = useState<string | null>(null);
   const [articleThemeAccentHexes, setArticleThemeAccentHexes] = useState<string[]>([]);
   const [articleSeed, setArticleSeed] = useState<string | null>(null);
+  const [articleSubtitle, setArticleSubtitle] = useState<string | null>(null);
+  const [articleSummary, setArticleSummary] = useState<string | null>(null);
   const articleBlocks = useMemo(
     () => (article ? parseArticleBlocks(article.content) : []),
     [article]
@@ -1466,6 +1468,8 @@ export default function ArticlePage() {
       setArticleThemeHex(null);
       setArticleThemeAccentHexes([]);
       setArticleSeed(null);
+      setArticleSubtitle(null);
+      setArticleSummary(null);
 
       try {
         let docsUrl = "";
@@ -1499,6 +1503,8 @@ export default function ArticlePage() {
 
           const record = playbookResult.data;
           recordId = record.record_id;
+          setArticleSubtitle((record.fields["Subtitle"] as string) || (record.fields["subtitle"] as string) || null);
+          setArticleSummary((record.fields["Summary"] as string) || (record.fields["summary"] as string) || null);
           setArticleSeed(
             heroGradientSeedForRecord({
               record_id: record.record_id,
@@ -1781,24 +1787,38 @@ export default function ArticlePage() {
               motionPaused={false}
             />
             <div ref={titleSentinelRef} className="relative z-10 mx-auto max-w-[860px] px-5 py-20 text-center sm:px-8 sm:py-28 lg:py-45">
-
-              <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[3rem] lg:leading-[1.15]">
-                {!article ? (
-                  <span className="mx-auto block h-10 w-2/3 animate-pulse rounded bg-white/25" />
-                ) : (
-                  articleTitle
-                )}
-              </h1>
-              {article && coverTags.length > 0 ? (
-                <div className="mt-4 text-center text-sm text-white/85">
-                  {coverTags.join(" · ")}
-                </div>
-              ) : !article ? (
-                <div className="mt-4 flex items-center justify-center gap-2">
+              {!article ? (
+                <div className="mb-4 flex items-center justify-center gap-2">
                   <span className="h-6 w-16 animate-pulse rounded-full bg-white/60" />
                   <span className="h-6 w-14 animate-pulse rounded-full bg-white/60" />
                   <span className="h-6 w-20 animate-pulse rounded-full bg-white/60" />
                 </div>
+              ) : coverTags.length > 0 ? (
+                <p className="mb-3 text-center text-base font-medium tracking-wide text-white/70">
+                  {coverTags.join(" · ")}
+                </p>
+              ) : null}
+
+              {article && articleSubtitle?.trim() && articleTitle ? (
+                <p className="mt-6 mb-3 text-center text-base font-semibold tracking-tight text-white/90">
+                  {articleTitle}
+                </p>
+              ) : null}
+
+              <h1 className="text-5xl font-extrabold tracking-tight text-white lg:text-[3rem] lg:leading-[1.15]">
+                {!article ? (
+                  <span className="mx-auto block h-10 w-2/3 animate-pulse rounded bg-white/25" />
+                ) : articleSubtitle?.trim() ? (
+                  articleSubtitle
+                ) : (
+                  articleTitle
+                )}
+              </h1>
+
+              {article && articleSummary?.trim() ? (
+                <p className="mx-auto mt-6 max-w-[700px] py-6 text-center text-xl font-semibold leading-relaxed text-white/90">
+                  {articleSummary}
+                </p>
               ) : null}
             </div>
           </div>
