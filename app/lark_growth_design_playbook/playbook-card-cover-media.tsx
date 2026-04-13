@@ -267,6 +267,7 @@ export function PlaybookCardCoverMedia({
   reduceMotion,
   recordId,
 }: PlaybookCardCoverMediaProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const rewindRafRef = useRef<number | null>(null);
   const [isSafari, setIsSafari] = useState(false);
@@ -403,6 +404,19 @@ export function PlaybookCardCoverMedia({
     });
   }, [motionUrl, recordId]);
 
+  useEffect(() => {
+    const el = containerRef.current?.closest('.group') || containerRef.current;
+    if (!el) return;
+
+    el.addEventListener('mouseenter', onEnter);
+    el.addEventListener('mouseleave', onLeave);
+
+    return () => {
+      el.removeEventListener('mouseenter', onEnter);
+      el.removeEventListener('mouseleave', onLeave);
+    };
+  }, [onEnter, onLeave]);
+
   const dataMotion = !motionUrl ? "absent" : phase === "error" ? "error" : phase === "loaded" ? "ready" : "present";
   const dataCover = !coverDisplayOn
     ? coverUrl
@@ -431,13 +445,12 @@ export function PlaybookCardCoverMedia({
 
   return (
     <div
+      ref={containerRef}
       className="absolute inset-0 z-0 overflow-hidden rounded-[inherit]"
       data-playbook-motion={dataMotion}
       data-playbook-cover={dataCover}
       data-playbook-record-id={recordId ?? ""}
       title={titleHint.length > 0 ? titleHint : "无 Cover / Motion，仅渐变"}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
     >
       <div
         className="pointer-events-none absolute inset-0 z-0 transition-[filter] duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] group-hover:brightness-[1.05] group-hover:saturate-[1.06]"
