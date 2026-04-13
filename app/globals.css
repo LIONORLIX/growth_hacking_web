@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Playbook：进度条用内联 transform + transition，此处仅保留整页渐显 */
+
+/* 加载完成后整页渐显（仅 opacity） */
+@keyframes playbook-page-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.playbook-page-fade-in {
+  animation: playbook-page-fade-in 1.05s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playbook-page-fade-in {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Playbook 列表卡片：自下而上错开渐显 */
+@keyframes playbook-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.playbook-card-enter {
+  /* 与 keyframes from 一致，避免首帧在动画引擎介入前已显示终态 */
+  opacity: 0;
+  transform: translateY(20px);
+  animation: playbook-card-enter 0.92s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playbook-card-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Playbook 全屏 Hero：切换篇目时标题区短位移 + 渐显 */
+@keyframes playbook-hero-copy-swap {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.playbook-hero-copy-swap {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: playbook-hero-copy-swap 0.48s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playbook-hero-copy-swap {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
