@@ -26,8 +26,16 @@ type BaseData = {
   has_more: boolean;
 };
 
+function isPublishedRecord(item: BaseRecord): boolean {
+  const raw = item.fields?.Status ?? item.fields?.status ?? item.fields?.STATUS;
+  return typeof raw === "string" && raw.trim().toLowerCase() === "pub";
+}
+
 const APP_TOKEN = getPlaybookAppToken();
 const TABLE_ID = getPlaybookTableId();
+
+/** 与批量导出一致：给 React 重挂载 p5 / WebGL 首帧留出时间，避免 captureStream 前几帧为空。 */
+const RECORD_SETTLE_MS = 900;
 
 type ExportFormat = "auto" | "mp4" | "webm";
 type MountedP5 = {
@@ -35,6 +43,18 @@ type MountedP5 = {
   getCanvas: () => HTMLCanvasElement | null;
   resize: (w: number, h: number) => void;
 };
+
+function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("导出首帧失败：无法生成 PNG"));
+        return;
+      }
+      resolve(blob);
+    }, "image/png");
+  });
+}
 
 function pickVideoMimeType(format: ExportFormat): string | undefined {
   const mp4Candidates = ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1", "video/mp4"];
@@ -111,7 +131,11 @@ export default function CardCoverVideoPage() {
         );
         const json = await res.json();
         if (!json.ok) throw new Error(json.error || "拉取失败");
-        if (!cancelled) setData(json.data as BaseData);
+        if (!cancelled) {
+          const raw = json.data as BaseData;
+          const items = raw.items.filter(isPublishedRecord);
+          setData({ ...raw, items, total: items.length, has_more: false });
+        }
       } catch (e) {
         if (!cancelled) setError(String(e));
       } finally {
@@ -124,8 +148,12 @@ export default function CardCoverVideoPage() {
   }, []);
 
   useEffect(() => {
-    if (!data?.items.length) return;
-    if (selectedId) return;
+    if (!data?.items.length) {
+      setSelectedId(null);
+      return;
+    }
+    const ok = selectedId && data.items.some((r) => r.record_id === selectedId);
+    if (ok) return;
     setSelectedId(data.items[0]!.record_id);
   }, [data, selectedId]);
 
@@ -168,7 +196,30 @@ export default function CardCoverVideoPage() {
     setLog((prev) => (prev ? `${prev}\n${line}` : line));
   }, []);
 
-  const recordCurrentToBlob = useCallback(async (): Promise<{ blob: Blob; ext: "mp4" | "webm"; mimeBase: string }> => {
+  /** 等待 mount effect 里异步挂载的 canvas 可用（单条录制无 setState 间隔时尤其需要）。 */
+  const waitForMountCanvas = useCallback(async (timeoutMs = 12_000) => {
+    const start = performance.now();
+    while (performance.now() - start < timeoutMs) {
+      const canvas = mountRef.current?.getCanvas();
+      if (canvas && canvas.width > 0 && canvas.height > 0) return;
+      await new Promise<void>((r) => {
+        setTimeout(r, 50);
+      });
+    }
+    throw new Error("画布未就绪：等待挂载超时，请稍后重试或切换记录后再录");
+  }, []);
+
+  const settleBeforeRecord = useCallback(
+    () => new Promise<void>((r) => setTimeout(r, RECORD_SETTLE_MS)),
+    [],
+  );
+
+  const recordCurrentToBlob = useCallback(async (): Promise<{
+    blob: Blob;
+    ext: "mp4" | "webm";
+    mimeBase: string;
+    firstFrameBlob: Blob;
+  }> => {
     const webglCanvas = mountRef.current?.getCanvas();
     if (!webglCanvas) throw new Error("画布未就绪");
     
@@ -194,6 +245,10 @@ export default function CardCoverVideoPage() {
     rec.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.push(e.data);
     };
+
+    // 首次绘制后立即截取首帧，确保与视频开头一致。
+    ctx.drawImage(webglCanvas, 0, 0);
+    const firstFrameBlob = await canvasToPngBlob(proxyCanvas);
 
     let keepDrawing = true;
     const drawLoop = () => {
@@ -236,7 +291,7 @@ export default function CardCoverVideoPage() {
 
     const mimeBase = mime.split(";")[0] || "video/webm";
     const ext: "mp4" | "webm" = mimeBase.includes("mp4") ? "mp4" : "webm";
-    return { blob: new Blob(chunks, { type: mimeBase }), ext, mimeBase };
+    return { blob: new Blob(chunks, { type: mimeBase }), ext, mimeBase, firstFrameBlob };
   }, [durationSec, exportFormat, fps]);
 
   const downloadBlob = (blob: Blob, filename: string) => {
@@ -253,10 +308,16 @@ export default function CardCoverVideoPage() {
     setRecording(true);
     setLog("");
     try {
-      const { blob, ext, mimeBase } = await recordCurrentToBlob();
-      const name = `playbook-cover-${safeFileSlug(selected)}-${selected.record_id}.${ext}`;
-      downloadBlob(blob, name);
-      appendLog(`已下载：${name} (${mimeBase})`);
+      await waitForMountCanvas();
+      await settleBeforeRecord();
+      const { blob, ext, mimeBase, firstFrameBlob } = await recordCurrentToBlob();
+      const baseName = `playbook-cover-${safeFileSlug(selected)}-${selected.record_id}`;
+      const videoName = `${baseName}.${ext}`;
+      const frameName = `${baseName}-frame1.png`;
+      downloadBlob(blob, videoName);
+      downloadBlob(firstFrameBlob, frameName);
+      appendLog(`已下载：${videoName} (${mimeBase})`);
+      appendLog(`已下载：${frameName} (image/png)`);
     } catch (e) {
       appendLog(String(e));
     } finally {
@@ -273,11 +334,16 @@ export default function CardCoverVideoPage() {
         const item = data.items[i]!;
         setSelectedId(item.record_id);
         appendLog(`[${i + 1}/${data.items.length}] 准备 ${item.record_id} …`);
-        await new Promise((r) => setTimeout(r, 900));
-        const { blob, ext, mimeBase } = await recordCurrentToBlob();
-        const name = `playbook-cover-${safeFileSlug(item)}-${item.record_id}.${ext}`;
-        downloadBlob(blob, name);
-        appendLog(`已下载：${name} (${mimeBase})`);
+        await waitForMountCanvas();
+        await settleBeforeRecord();
+        const { blob, ext, mimeBase, firstFrameBlob } = await recordCurrentToBlob();
+        const baseName = `playbook-cover-${safeFileSlug(item)}-${item.record_id}`;
+        const videoName = `${baseName}.${ext}`;
+        const frameName = `${baseName}-frame1.png`;
+        downloadBlob(blob, videoName);
+        downloadBlob(firstFrameBlob, frameName);
+        appendLog(`已下载：${videoName} (${mimeBase})`);
+        appendLog(`已下载：${frameName} (image/png)`);
       }
       appendLog("批量完成。");
     } catch (e) {

@@ -281,10 +281,9 @@ export default function PlaybookHeroShaderBackground({
       const sketch = (p: P5Instance) => {
         let bgShader: P5ShaderUniforms;
         let ramp: P5GraphicsPixels;
-        /** 与暂停前 uFlow.z 连续：暂停时冻结该值，解除暂停时用锚点接上 millis */
-        let flowTAnchorMillis = 0;
-        let frozenFlowT = 0;
-        let prevPaused: boolean | null = null;
+        /** 仅在未暂停时累加，暂停后稳定停在当前帧。 */
+        let flowT = 0;
+        let prevMillis: number | null = null;
 
         p.setup = () => {
           const w = Math.max(1, host.clientWidth);
@@ -301,21 +300,15 @@ export default function PlaybookHeroShaderBackground({
           const paused = motionPausedRef.current;
           const millis = p.millis();
           const ts = cfg.timeScale;
-
-          if (prevPaused === null) {
-            prevPaused = paused;
-            flowTAnchorMillis = millis;
-            frozenFlowT = 0;
-          } else if (paused !== prevPaused) {
-            if (paused) {
-              frozenFlowT = (millis - flowTAnchorMillis) * ts;
-            } else {
-              flowTAnchorMillis = millis - frozenFlowT / ts;
-            }
-            prevPaused = paused;
+          if (prevMillis == null) {
+            prevMillis = millis;
           }
-
-          const t = paused ? frozenFlowT : (millis - flowTAnchorMillis) * ts;
+          const deltaMs = Math.max(0, millis - prevMillis);
+          prevMillis = millis;
+          if (!paused) {
+            flowT += deltaMs * ts;
+          }
+          const t = flowT;
 
           p.shader(bgShader as never);
           bgShader.setUniform("uRampTex", ramp);

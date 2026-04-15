@@ -250,7 +250,7 @@ function PlaybookHeroSlidesCardChrome({
               href={copyHref}
               className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-900 transition-[opacity,transform] duration-200 ease-out hover:opacity-95 active:scale-[0.98] sm:mt-6 sm:px-5 sm:py-2.5"
             >
-              立即阅读
+              阅读全文
             </Link>
           </div>
         </div>
@@ -1148,9 +1148,7 @@ export default function PlaybookPage() {
                       seed={heroShaderSeed}
                       themeBaseHex={activeHeroThemeHex}
                       themeAccentHexes={activeHeroThemeAccentHexes}
-                      motionPaused={
-                        !playbookChromeFullscreen || heroSnapLayoutAnimating
-                      }
+                      motionPaused={heroSnapLayoutAnimating}
                     />
                   )}
                 </div>

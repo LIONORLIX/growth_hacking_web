@@ -329,6 +329,8 @@ export function PlaybookCardCoverMedia({
     }
     if (isSafari) v.playbackRate = 1;
     void v.play().catch((e) => {
+      // Hover 频繁进出时，play 会被紧接着的 pause 中断，浏览器会抛 AbortError；这不是实际故障。
+      if (e instanceof DOMException && e.name === "AbortError") return;
       console.warn("[Playbook Motion video] play() 失败", recordId, e);
     });
   }, [motionUrl, reduceMotion, recordId, isSafari]);
@@ -428,21 +430,6 @@ export function PlaybookCardCoverMedia({
         ? "error"
         : "present";
 
-  const titleHint = [
-    coverDisplayOn && coverUrl && !coverBroken
-      ? `Cover: ${coverUrl.slice(0, 120)}${coverUrl.length > 120 ? "…" : ""}`
-      : !coverDisplayOn && coverUrl
-        ? "Cover: 已关闭（NEXT_PUBLIC_PLAYBOOK_SHOW_COVER）"
-        : null,
-    motionUrl
-      ? phase === "error"
-        ? "Motion 加载失败（见控制台）"
-        : `Motion: ${motionUrl.slice(0, 120)}${motionUrl.length > 120 ? "…" : ""}`
-      : "无 Motion",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
   return (
     <div
       ref={containerRef}
@@ -450,7 +437,6 @@ export function PlaybookCardCoverMedia({
       data-playbook-motion={dataMotion}
       data-playbook-cover={dataCover}
       data-playbook-record-id={recordId ?? ""}
-      title={titleHint.length > 0 ? titleHint : "无 Cover / Motion，仅渐变"}
     >
       <div
         className="pointer-events-none absolute inset-0 z-0 transition-[filter] duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] group-hover:brightness-[1.05] group-hover:saturate-[1.06]"
