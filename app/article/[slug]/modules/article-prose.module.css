@@ -1,3 +1,5 @@
+/* 文章正文排版：标题层级、段落、列表、表格、引用、分栏、画板与行内元素等。 */
+
 .content {
   color: #1f1f1f;
   line-height: 1.78;
@@ -12,8 +14,22 @@
     sans-serif;
 }
 
+.headingNumberPrefix {
+  display: inline-block;
+  margin-right: 0.35em;
+  font-variant-numeric: tabular-nums;
+  color: #525252;
+  font-weight: 600;
+  letter-spacing: 0;
+  user-select: none;
+}
+
+.headingSpacer {
+  height: 2rem;
+}
+
 .heading1 {
-  margin: 3rem 0 1.1rem;
+  margin: 0 0 1.1rem;
   font-size: 2.25rem;
   line-height: 1.2;
   font-weight: 700;
@@ -25,7 +41,7 @@
 }
 
 .heading2 {
-  margin: 0rem 0 0.95rem;
+  margin: 0 0 0.95rem;
   font-size: 1.75rem;
   line-height: 1.25;
   font-weight: 670;
@@ -37,7 +53,7 @@
 }
 
 .heading3 {
-  margin: 2.1rem 0 0.75rem;
+  margin: 0 0 0.75rem;
   font-size: 1.35rem;
   line-height: 1.33;
   font-weight: 640;
@@ -46,7 +62,7 @@
 }
 
 .heading4 {
-  margin: 1.45rem 0 0.58rem;
+  margin: 0 0 0.58rem;
   font-size: 1.12rem;
   line-height: 1.42;
   font-weight: 630;
@@ -54,7 +70,7 @@
 }
 
 .heading5 {
-  margin: 1.2rem 0 0.55rem;
+  margin: 0 0 0.55rem;
   font-size: 1rem;
   line-height: 1.5;
   font-weight: 620;
@@ -62,7 +78,7 @@
 }
 
 .heading6 {
-  margin: 1.1rem 0 0.5rem;
+  margin: 0 0 0.5rem;
   font-size: 0.94rem;
   line-height: 1.5;
   font-weight: 600;
@@ -79,7 +95,6 @@
   word-break: auto-phrase;
   text-wrap: pretty;
   line-break: auto;
-  /* max-width: 68ch; */
 }
 
 .textBlock {
@@ -92,7 +107,6 @@
   word-break: auto-phrase;
   text-wrap: pretty;
   line-break: auto;
-  /* max-width: 68ch; */
 }
 
 .blockquote {
@@ -164,30 +178,6 @@
   border-radius: 0.5rem;
 }
 
-.lazyImageWrap {
-  position: relative;
-  width: 100%;
-  min-height: 0;
-}
-
-.lazyImageSkeleton {
-  width: 100%;
-  min-height: 120px;
-  border-radius: 0.75rem;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%;
-  animation: articleSkeletonShimmer 1.2s infinite;
-}
-
-.lazyImage {
-  opacity: 0;
-  transition: opacity 0.22s ease;
-}
-
-.lazyImageLoaded {
-  opacity: 1;
-}
-
 .calloutBlock {
   margin: 1.3rem 0;
   padding: 0.85rem 1rem;
@@ -195,6 +185,12 @@
   border-radius: 0.5rem;
   background: #fafafa;
   color: #202020;
+  white-space: pre-wrap;
+  line-height: 1.78;
+  word-break: normal;
+  word-break: auto-phrase;
+  text-wrap: pretty;
+  line-break: auto;
 }
 
 .quoteBlock {
@@ -310,15 +306,6 @@
   border: 1px solid #e0e0e0;
 }
 
-@keyframes articleSkeletonShimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
 .childrenBlock {
   margin: 0.75rem 0;
   padding: 0.7rem 0.8rem;
@@ -343,61 +330,6 @@
   word-break: break-word;
   max-height: 360px;
   overflow: auto;
-}
-
-/* ── block skeleton (partial loading state) ──────────────────── */
-
-@keyframes blockSkeletonShimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
-}
-
-.skeletonLine {
-  height: 13px;
-  border-radius: 5px;
-  background: linear-gradient(90deg, #efefef 25%, #e2e2e2 50%, #efefef 75%);
-  background-size: 200% 100%;
-  animation: blockSkeletonShimmer 1.4s ease-in-out infinite;
-}
-
-.skeletonLineShort {
-  height: 13px;
-  border-radius: 5px;
-  background: linear-gradient(90deg, #efefef 25%, #e2e2e2 50%, #efefef 75%);
-  background-size: 200% 100%;
-  animation: blockSkeletonShimmer 1.4s ease-in-out infinite;
-  width: 55%;
-}
-
-.skeletonImageArea {
-  height: 100px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #efefef 25%, #e2e2e2 50%, #efefef 75%);
-  background-size: 200% 100%;
-  animation: blockSkeletonShimmer 1.4s ease-in-out infinite;
-}
-
-.skeletonCallout {
-  padding: 0.65rem 1rem;
-  border-left: 3px solid #d1d5db;
-  background: #f9fafb;
-  border-radius: 6px;
-  margin: 0.6rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.skeletonGrid {
-  display: grid;
-  gap: 12px;
-  margin: 0.8rem 0;
-}
-
-.skeletonGridCol {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .inlineLink {
@@ -481,59 +413,4 @@
 
 .table tbody tr:nth-child(even) .td {
   background: #fcfcfc;
-}
-
-/* ── image lightbox ──────────────────────────────────────── */
-
-.lightboxOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(6px);
-  animation: lightboxFadeIn 0.18s ease;
-  padding: 2rem;
-}
-
-.lightboxImage {
-  max-width: 95vw;
-  max-height: 92vh;
-  object-fit: contain;
-  border-radius: 0.35rem;
-  cursor: zoom-out;
-  animation: lightboxScaleIn 0.2s ease;
-}
-
-.lightboxClose {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.lightboxClose:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-@keyframes lightboxFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes lightboxScaleIn {
-  from { opacity: 0; transform: scale(0.94); }
-  to   { opacity: 1; transform: scale(1); }
 }

@@ -14,7 +14,7 @@ const GLOBAL_DEBUG_ENABLED =
   process.env.ARTICLE_DEBUG === "1" ||
   process.env.ARTICLE_DEBUG?.toLowerCase() === "true";
 const ARTICLE_CACHE_TTL_MS = 3 * 60_000;
-const ARTICLE_CACHE_SCHEMA_VERSION = "v4";
+const ARTICLE_CACHE_SCHEMA_VERSION = "v7";
 const articleCache = new Map<string, { expiresAt: number; data: unknown }>();
 
 function isPublishedFields(fields: Record<string, unknown>): boolean {
@@ -189,8 +189,20 @@ type DocxBlock = {
   file?: { token?: string; name?: string; mime_type?: string };
   board?: { token?: string };
   divider?: Record<string, unknown>;
-  grid?: Record<string, unknown>;
+  /** 分栏块：列数 2–5 */
+  grid?: { column_size?: number };
+  /** 分栏列子块（block_type 25） */
+  grid_column?: { width_ratio?: number };
   children?: string[];
+  /** 文档表格块（block_type 31）：含列数等，用于正确分行 */
+  table?: {
+    cells?: string[];
+    property?: {
+      column_size?: number;
+      row_size?: number;
+      merge_info?: unknown;
+    };
+  };
 };
 
 type ArticleBlockPayload = {
@@ -205,6 +217,10 @@ type ArticleBlockPayload = {
   videoToken?: string;
   caption?: string;
   columns?: string[];
+  /** 与 columns 同序；飞书 grid_column.width_ratio（1–99），用于前端列宽比例 */
+  columnWidthRatios?: number[];
+  /** 与表格单元格展平顺序一致（行优先），飞书 property.merge_info */
+  tableCellMerge?: Array<{ row_span: number; col_span: number }>;
   raw?: unknown;
 };
 
@@ -398,6 +414,29 @@ function extractTextFromBlockTree(
 
 // ─── shared helpers ──────────────────────────────────────────────────────────
 
+/** 解析飞书表格 merge_info，长度须与单元格数一致 */
+function normalizeTableCellMergeFlat(
+  mergeInfo: unknown,
+  cellCount: number
+): { row_span: number; col_span: number }[] | null {
+  if (cellCount <= 0 || mergeInfo == null) return null;
+  const rawArr = Array.isArray(mergeInfo) ? mergeInfo : [mergeInfo];
+  if (rawArr.length !== cellCount) return null;
+  const out: { row_span: number; col_span: number }[] = [];
+  for (const item of rawArr) {
+    if (!item || typeof item !== "object") return null;
+    const o = item as Record<string, unknown>;
+    const rs = Number(o.row_span ?? o.rowSpan ?? 1);
+    const cs = Number(o.col_span ?? o.colSpan ?? 1);
+    if (!Number.isFinite(rs) || !Number.isFinite(cs)) return null;
+    out.push({
+      row_span: Math.min(99, Math.max(0, Math.floor(rs))),
+      col_span: Math.min(99, Math.max(0, Math.floor(cs))),
+    });
+  }
+  return out;
+}
+
 function buildBlockById(items: DocxBlock[]): Map<string, DocxBlock> {
   const map = new Map<string, DocxBlock>();
   for (const b of items) {
@@ -424,12 +463,30 @@ function normalizeBlocks(
       normalized.text = extractTextFromBlockTree(block, blockById);
     }
     if (normalized.type === "grid") {
-      normalized.columns = (block.children ?? []).map((childId) =>
+      const childIds = block.children ?? [];
+      normalized.columns = childIds.map((childId) =>
         extractTextFromBlockTree(blockById.get(childId), blockById)
       );
+      const ratios: number[] = [];
+      for (const childId of childIds) {
+        const child = blockById.get(childId);
+        const r = child?.grid_column?.width_ratio;
+        if (typeof r === "number" && r >= 1 && r <= 99) {
+          ratios.push(r);
+        }
+      }
+      if (ratios.length === childIds.length && ratios.length > 0) {
+        normalized.columnWidthRatios = ratios;
+      }
     }
     if (normalized.type === "children" && block.children?.length) {
-      const childBlocks = block.children
+      const childIds = block.children ?? [];
+      const orderedIds =
+        block.table?.cells?.length === childIds.length
+          ? block.table.cells
+          : childIds;
+
+      const childBlocks = orderedIds
         .map((childId) => blockById.get(childId))
         .filter((item): item is DocxBlock => Boolean(item));
       const looksLikeTable =
@@ -441,20 +498,39 @@ function normalizeBlocks(
           extractTextFromBlockTree(child, blockById).trim()
         );
         const total = cells.length;
-        let colCount = 2;
-        // 优先较小列数，避免 8 格被误判成 4 列（常见实际是 2 列 challenge 表）
-        for (const c of [2, 3, 4]) {
-          if (total >= c && total % c === 0) {
-            colCount = c;
-            break;
+
+        const declared = block.table?.property?.column_size;
+        let colCount =
+          typeof declared === "number" &&
+          declared > 0 &&
+          total % declared === 0
+            ? declared
+            : 0;
+
+        if (!colCount) {
+          colCount = 2;
+          // 无 column_size 时沿用较小列数优先（如 8 格→2 列×4 行 challenge 表）
+          for (const c of [2, 3, 4, 5, 6]) {
+            if (total >= c && total % c === 0) {
+              colCount = c;
+              break;
+            }
           }
         }
+
         const rows: string[][] = [];
         for (let i = 0; i < cells.length; i += colCount) {
           rows.push(cells.slice(i, i + colCount));
         }
         normalized.type = "table";
         normalized.rows = rows;
+        const mergeFlat = normalizeTableCellMergeFlat(
+          block.table?.property?.merge_info,
+          cells.length
+        );
+        if (mergeFlat) {
+          normalized.tableCellMerge = mergeFlat;
+        }
       } else {
         normalized.text = extractTextFromBlockTree(block, blockById);
       }
