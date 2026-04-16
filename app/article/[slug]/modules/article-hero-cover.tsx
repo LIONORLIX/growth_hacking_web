@@ -16,6 +16,7 @@ type ArticleLike = {
 
 export function ArticleHeroCover({
   titleSentinelRef,
+  stickyVisible,
   article,
   coverTags,
   articleTitle,
@@ -26,6 +27,7 @@ export function ArticleHeroCover({
   articleThemeAccentHexes,
 }: {
   titleSentinelRef: RefObject<HTMLDivElement | null>;
+  stickyVisible: boolean;
   article: ArticleLike;
   coverTags: string[];
   articleTitle: string;
@@ -37,7 +39,13 @@ export function ArticleHeroCover({
 }) {
   return (
     <div className="-mx-5 mb-6 overflow-hidden border-b border-gray-100 sm:-mx-8 lg:-mx-10">
-      <div className="absolute inset-x-0 top-0 z-10">
+      <div
+        className={`fixed inset-x-0 top-0 z-[65] transition-[opacity,transform] duration-200 ${
+          stickyVisible
+            ? "pointer-events-none -translate-y-2 opacity-0"
+            : "translate-y-0 opacity-100"
+        }`}
+      >
         <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between py-4">
           <Link
             href="/lark_growth_design_playbook"

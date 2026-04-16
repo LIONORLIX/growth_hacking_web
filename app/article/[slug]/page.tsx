@@ -455,6 +455,7 @@ export default function ArticlePage() {
 
         <ArticleHeroCover
           titleSentinelRef={titleSentinelRef}
+          stickyVisible={titleStuck}
           article={article}
           coverTags={coverTags}
           articleTitle={articleTitle}
