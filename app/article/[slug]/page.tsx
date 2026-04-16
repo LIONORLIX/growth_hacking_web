@@ -40,6 +40,7 @@ import { ArticleTocAside } from "./modules/article-toc-aside";
 import { ArticlePageFooter } from "./modules/article-page-footer";
 import { ArticleBodyPreviewSkeleton } from "./modules/article-body-preview-skeleton";
 import { ArticleStreamFooter } from "./modules/article-stream-footer";
+import { ArticleErrorState } from "./modules/article-error-state";
 
 const APP_TOKEN = "B4K3bAYKTau24es6Dxdcq3FEnig";
 const TABLE_ID = "tblHalmUkZ8AZSgp";
@@ -418,6 +419,10 @@ export default function ArticlePage() {
     return <ArticleSsrFallback bgShader={bgShader} />;
   }
 
+  if (error && !article) {
+    return <ArticleErrorState errorMessage={error} />;
+  }
+
   return (
     <div className="relative min-h-screen bg-white pb-16">
       {splashVisible ? (
@@ -465,7 +470,6 @@ export default function ArticlePage() {
 
           <article className="lg:col-start-2">
             {loading && !article && <ArticleBodyPreviewSkeleton />}
-            {error && <p className="text-red-600">{error}</p>}
 
             {article && (
               <ArticleContent article={article} blocks={articleBlocks} />
