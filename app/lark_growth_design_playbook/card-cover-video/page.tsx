@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getPlaybookAppToken, getPlaybookTableId } from "@/lib/playbook-data-source";
+import { itemHasPublishedStatus } from "@/lib/playbook-status";
 import {
   heroGradientSeedForRecord,
   playbookSlugFromFields,
@@ -25,11 +26,6 @@ type BaseData = {
   total: number;
   has_more: boolean;
 };
-
-function isPublishedRecord(item: BaseRecord): boolean {
-  const raw = item.fields?.Status ?? item.fields?.status ?? item.fields?.STATUS;
-  return typeof raw === "string" && raw.trim().toLowerCase() === "pub";
-}
 
 const APP_TOKEN = getPlaybookAppToken();
 const TABLE_ID = getPlaybookTableId();
@@ -133,7 +129,7 @@ export default function CardCoverVideoPage() {
         if (!json.ok) throw new Error(json.error || "拉取失败");
         if (!cancelled) {
           const raw = json.data as BaseData;
-          const items = raw.items.filter(isPublishedRecord);
+          const items = raw.items.filter(itemHasPublishedStatus);
           setData({ ...raw, items, total: items.length, has_more: false });
         }
       } catch (e) {

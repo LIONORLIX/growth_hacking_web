@@ -1,3 +1,5 @@
+import { formatCoverMetaLine } from "@/lib/cover-meta-line";
+import { recordHasPublishedStatus } from "@/lib/playbook-status";
 import {
   getBaseRecords,
   getDocumentBlocks,
@@ -14,13 +16,11 @@ const GLOBAL_DEBUG_ENABLED =
   process.env.ARTICLE_DEBUG === "1" ||
   process.env.ARTICLE_DEBUG?.toLowerCase() === "true";
 const ARTICLE_CACHE_TTL_MS = 3 * 60_000;
-const ARTICLE_CACHE_SCHEMA_VERSION = "v7";
+const ARTICLE_CACHE_SCHEMA_VERSION = "v8";
 const articleCache = new Map<string, { expiresAt: number; data: unknown }>();
 
 function isPublishedFields(fields: Record<string, unknown>): boolean {
-  const raw = fields.Status ?? fields.status ?? fields.STATUS;
-  if (typeof raw !== "string") return false;
-  return raw.trim().toLowerCase() === "pub";
+  return recordHasPublishedStatus(fields);
 }
 
 function collectDocUrl(value: unknown): string | null {
@@ -547,7 +547,7 @@ async function resolveDocumentId(
   recordId: string | null,
   debugDocsUrl: string | null
 ): Promise<
-  | { ok: true; documentId: string; docsUrl: string; tags: string[] }
+  | { ok: true; documentId: string; docsUrl: string; tags: string[]; coverMetaLine: string }
   | { ok: false; response: Response }
 > {
   if (debug) {
@@ -560,6 +560,7 @@ async function resolveDocumentId(
       documentId: configuredDebugDocumentId,
       docsUrl: configuredDebugUrl,
       tags: [],
+      coverMetaLine: "",
     };
   }
   const recordsData = await getBaseRecords(appToken!, tableId!);
@@ -586,6 +587,7 @@ async function resolveDocumentId(
   }
   const docsUrl = pickArticleDocsUrl(fields) ?? "";
   const tags = collectTagsFromFields(fields);
+  const coverMetaLine = formatCoverMetaLine(fields);
   if (!docsUrl) {
     return {
       ok: false,
@@ -605,7 +607,7 @@ async function resolveDocumentId(
       ),
     };
   }
-  return { ok: true, documentId, docsUrl, tags };
+  return { ok: true, documentId, docsUrl, tags, coverMetaLine };
 }
 
 // ─── streaming handler ───────────────────────────────────────────────────────
@@ -615,6 +617,7 @@ async function handleStreaming(
   docsUrl: string,
   recordId: string,
   tags: string[],
+  coverMetaLine: string,
   debug: boolean
 ): Promise<Response> {
   const enc = new TextEncoder();
@@ -659,6 +662,7 @@ async function handleStreaming(
                 docsUrl,
                 documentId,
                 tags,
+                coverMetaLine,
                 docTitle: metaData.document?.title ?? "",
                 debug,
                 content: "",
@@ -694,6 +698,7 @@ async function handleStreaming(
           docsUrl,
           documentId,
           tags,
+          coverMetaLine,
           docTitle: metaData.document?.title ?? "",
           debug,
           content,
@@ -756,12 +761,19 @@ export async function GET(request: Request) {
       debugDocsUrl
     );
     if (!resolved.ok) return resolved.response;
-    const { documentId, docsUrl, tags } = resolved;
+    const { documentId, docsUrl, tags, coverMetaLine } = resolved;
     const effectiveRecordId = recordId ?? "debug";
 
     // ── streaming mode ──
     if (streaming) {
-      return handleStreaming(documentId, docsUrl, effectiveRecordId, tags, debug);
+      return handleStreaming(
+        documentId,
+        docsUrl,
+        effectiveRecordId,
+        tags,
+        coverMetaLine,
+        debug
+      );
     }
 
     // ── regular JSON mode (legacy / cache fast path) ──
@@ -797,6 +809,7 @@ export async function GET(request: Request) {
       docsUrl,
       documentId,
       tags,
+      coverMetaLine,
       docTitle: metaData.document?.title ?? "",
       debug,
       content,

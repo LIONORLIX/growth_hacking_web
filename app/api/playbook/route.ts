@@ -1,11 +1,6 @@
 import { getBaseRecords } from "@/lib/feishu/client";
 import { getPlaybookAppToken, getPlaybookTableId } from "@/lib/playbook-data-source";
-
-function isPublishedRecord(item: any): boolean {
-  const raw = item?.fields?.Status ?? item?.fields?.status ?? item?.fields?.STATUS;
-  if (typeof raw !== "string") return false;
-  return raw.trim().toLowerCase() === "pub";
-}
+import { itemHasPublishedStatus } from "@/lib/playbook-status";
 
 export async function GET(request: Request) {
   try {
@@ -15,7 +10,7 @@ export async function GET(request: Request) {
 
     const data = await getBaseRecords(getPlaybookAppToken(), getPlaybookTableId());
     const allItems = (data as { items?: any[] })?.items || [];
-    const publishedItems = allItems.filter(isPublishedRecord);
+    const publishedItems = allItems.filter(itemHasPublishedStatus);
 
     if (!slug && !recordId) {
       return Response.json({ ok: true, data: { ...(data as object), items: publishedItems } });

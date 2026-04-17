@@ -25,7 +25,9 @@ import {
 } from "@/app/lark_growth_design_playbook/playbook-card-cover-media";
 import { PlaybookFullscreenPathTracers } from "@/app/lark_growth_design_playbook/playbook-fullscreen-path-tracers";
 import { PlaybookSplashPaths } from "@/app/lark_growth_design_playbook/playbook-splash-paths";
+import { formatCoverMetaLine } from "@/lib/cover-meta-line";
 import { getPlaybookAppToken, getPlaybookTableId } from "@/lib/playbook-data-source";
+import { itemHasHeroHighlight, itemHasPublishedStatus } from "@/lib/playbook-status";
 
 const PlaybookHeroShaderBackground = dynamic(() => import("./playbook-hero-shader-bg"), {
   ssr: false,
@@ -40,6 +42,11 @@ type BaseRecord = {
     Title?: string;
     Category?: string;
     Region?: string[];
+    /** 多选标签等，与 Region 一并纳入元信息展示 */
+    Tags?: unknown;
+    tags?: unknown;
+    Tag?: unknown;
+    tag?: unknown;
     Cover?: Array<{
       file_token?: string;
       url?: string;
@@ -64,21 +71,51 @@ type BaseRecord = {
     /** 文章路径与渐变种子主键；API 也可能返回小写字段名 `slug` */
     Slug?: string;
     slug?: string;
-    Status?: string;
+    /** 列表/封面主文案；与文章页一致，可与 Title 组合展示 */
+    Subtitle?: string;
+    subtitle?: string;
+    /** 单选或多选；Hero 仅含 highlight 的条目 */
+    Status?: unknown;
     [key: string]: any;
   };
 };
+
+/** 飞书字段可能为 Title / title 等形式 */
+function playbookFieldString(
+  fields: BaseRecord["fields"],
+  ...keys: string[]
+): string {
+  for (const key of keys) {
+    const raw = (fields as Record<string, unknown>)[key];
+    if (typeof raw === "string" && raw.trim()) return raw.trim();
+  }
+  return "";
+}
+
+/**
+ * 与文章页 Hero 一致：有 Subtitle 时主标题为副标题，Title 作辅线；否则主标题为 Title。
+ * （仅用于 Hero 轮播；列表子卡片用 Title/Subtitle 字段一一映射，不做互换。）
+ */
+function playbookDisplayHeadline(fields: BaseRecord["fields"]): {
+  primary: string;
+  secondary: string | null;
+} {
+  const title = playbookFieldString(fields, "Title", "title");
+  const subtitle = playbookFieldString(fields, "Subtitle", "subtitle");
+  if (subtitle && title) {
+    return { primary: subtitle, secondary: title };
+  }
+  if (subtitle) {
+    return { primary: subtitle, secondary: null };
+  }
+  return { primary: title || "Untitled", secondary: null };
+}
 
 type BaseData = {
   items: BaseRecord[];
   total: number;
   has_more: boolean;
 };
-
-function isPublishedRecord(item: BaseRecord): boolean {
-  const raw = item.fields?.Status ?? item.fields?.status ?? item.fields?.STATUS;
-  return typeof raw === "string" && raw.trim().toLowerCase() === "pub";
-}
 
 const APP_TOKEN = getPlaybookAppToken();
 const TABLE_ID = getPlaybookTableId();
@@ -151,10 +188,11 @@ function recordRecencyMs(r: BaseRecord): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Hero 与筛选无关：全表按修改/创建时间取最新的若干条 */
+/** Hero：仅 Status 含 highlight 的记录，按修改/创建时间取最新若干条 */
 function latestRecordsForHero(items: BaseRecord[], limit: number): BaseRecord[] {
-  if (items.length === 0 || limit <= 0) return [];
-  const indexed = items.map((item, index) => ({ item, index }));
+  const highlighted = items.filter((item) => itemHasHeroHighlight(item));
+  if (highlighted.length === 0 || limit <= 0) return [];
+  const indexed = highlighted.map((item, index) => ({ item, index }));
   indexed.sort((a, b) => {
     const ta = recordRecencyMs(a.item);
     const tb = recordRecencyMs(b.item);
@@ -216,10 +254,12 @@ function PlaybookHeroSlidesCardChrome({
 
   const currentSlide =
     heroSlides[Math.max(0, Math.min(heroSlides.length - 1, activeHeroSlide))]!;
-  const copyMeta = [currentSlide.fields.Category, currentSlide.fields.Region?.[0]]
-    .filter(Boolean)
-    .map((value) => stripEmojiFn(String(value)))
-    .join(" ｜ ");
+  const { primary: headlinePrimary, secondary: headlineSecondary } =
+    playbookDisplayHeadline(currentSlide.fields);
+  const copyMeta = formatCoverMetaLine(
+    currentSlide.fields as Record<string, unknown>,
+    stripEmojiFn
+  );
   const copyHref = `/article/${currentSlide.fields.Slug || currentSlide.record_id}?rid=${encodeURIComponent(currentSlide.record_id)}`;
 
   return (
@@ -243,8 +283,13 @@ function PlaybookHeroSlidesCardChrome({
                 {copyMeta}
               </p>
             ) : null}
-            <h1 className="text-balance text-2xl font-semibold leading-[1.1] tracking-tight text-white sm:text-3xl md:text-4xl lg:text-5xl">
-              {currentSlide.fields.Title || "Untitled"}
+            {headlineSecondary ? (
+              <p className="mb-2 text-center text-sm font-semibold tracking-tight text-white/90 sm:mb-3 sm:text-base">
+                {headlineSecondary}
+              </p>
+            ) : null}
+            <h1 className="mx-auto max-w-[960px] text-balance text-2xl font-semibold leading-[1.1] tracking-tight text-white sm:text-3xl md:text-4xl lg:text-5xl">
+              {headlinePrimary}
             </h1>
             <Link
               href={copyHref}
@@ -378,10 +423,12 @@ function PlaybookHeroSlidesFullscreenChrome({
 
   const currentSlide =
     heroSlides[Math.max(0, Math.min(heroSlides.length - 1, activeHeroSlide))]!;
-  const copyMeta = [currentSlide.fields.Category, currentSlide.fields.Region?.[0]]
-    .filter(Boolean)
-    .map((value) => stripEmojiFn(String(value)))
-    .join(" ｜ ");
+  const { primary: headlinePrimary, secondary: headlineSecondary } =
+    playbookDisplayHeadline(currentSlide.fields);
+  const copyMeta = formatCoverMetaLine(
+    currentSlide.fields as Record<string, unknown>,
+    stripEmojiFn
+  );
   const copyHref = `/article/${currentSlide.fields.Slug || currentSlide.record_id}?rid=${encodeURIComponent(currentSlide.record_id)}`;
 
   return (
@@ -451,8 +498,13 @@ function PlaybookHeroSlidesFullscreenChrome({
                 {copyMeta}
               </p>
             ) : null}
+            {headlineSecondary ? (
+              <p className="mb-3 text-left text-base font-semibold tracking-tight text-white/90 sm:mb-4 sm:text-lg">
+                {headlineSecondary}
+              </p>
+            ) : null}
             <h1 className="text-balance text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
-              {currentSlide.fields.Title || "Untitled"}
+              {headlinePrimary}
             </h1>
             <Link
               href={copyHref}
@@ -719,7 +771,7 @@ export default function PlaybookPage() {
 
       if (result.ok) {
         const source = result.data as BaseData;
-        const publishedItems = (source.items ?? []).filter(isPublishedRecord);
+        const publishedItems = (source.items ?? []).filter(itemHasPublishedStatus);
         setData({
           ...source,
           items: publishedItems,
@@ -1360,39 +1412,59 @@ export default function PlaybookPage() {
                           key={cardGridRevealEpoch}
                           className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-6"
                         >
-                          {visibleItems.map((item, i) => (
-                            <Link
-                              key={`${item.record_id}-${selectedCategory ?? "c"}-${selectedRegion ?? "r"}`}
-                              href={`/article/${item.fields.Slug || item.record_id}?rid=${encodeURIComponent(item.record_id)}`}
-                              className="playbook-card-enter group block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
-                              style={{
-                                animationDelay: `${Math.min(i, 24) * 64}ms`,
-                              }}
-                            >
-                              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]">
-                                <PlaybookCardCoverMedia
-                                  coverUrl={coverAttachmentUrlFromFields(item.fields)}
-                                  motionSources={motionAttachmentSourcesFromFields(item.fields)}
-                                  staticBgUrl={bgStaticAttachmentUrlFromFields(item.fields)}
-                                  seed={heroGradientSeedForRecord(item)}
-                                  reduceMotion={reduceHeroShaderMotion}
-                                  recordId={item.record_id}
-                                />
-                              </div>
+                          {visibleItems.map((item, i) => {
+                            const cardTitle = playbookFieldString(item.fields, "Title", "title");
+                            const cardSubtitle = playbookFieldString(
+                              item.fields,
+                              "Subtitle",
+                              "subtitle"
+                            );
+                            const cardMainHeadline = cardTitle || cardSubtitle || "Untitled";
+                            const showSubtitleBelow = Boolean(cardTitle && cardSubtitle);
+                            const cardMeta = formatCoverMetaLine(
+                              item.fields as Record<string, unknown>,
+                              stripEmoji
+                            );
+                            return (
+                              <Link
+                                key={`${item.record_id}-${selectedCategory ?? "c"}-${selectedRegion ?? "r"}`}
+                                href={`/article/${item.fields.Slug || item.record_id}?rid=${encodeURIComponent(item.record_id)}`}
+                                className="playbook-card-enter group flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
+                                style={{
+                                  animationDelay: `${Math.min(i, 24) * 64}ms`,
+                                }}
+                              >
+                                <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]">
+                                  <PlaybookCardCoverMedia
+                                    coverUrl={coverAttachmentUrlFromFields(item.fields)}
+                                    motionSources={motionAttachmentSourcesFromFields(item.fields)}
+                                    staticBgUrl={bgStaticAttachmentUrlFromFields(item.fields)}
+                                    seed={heroGradientSeedForRecord(item)}
+                                    reduceMotion={reduceHeroShaderMotion}
+                                    recordId={item.record_id}
+                                  />
+                                  <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 px-2 text-center sm:gap-2 sm:px-3">
+                                    {cardMeta ? (
+                                      <p className="line-clamp-2 text-center text-[0.625rem] font-medium uppercase leading-tight tracking-wide text-white/75 sm:text-[0.6875rem]">
+                                        {cardMeta}
+                                      </p>
+                                    ) : null}
+                                    <h2 className="line-clamp-4 text-balance text-xs font-semibold leading-snug tracking-tight text-white sm:text-sm md:text-base">
+                                      {cardMainHeadline}
+                                    </h2>
+                                  </div>
+                                </div>
 
-                              <div className="pt-3">
-                                <h2 className="text-base font-semibold leading-snug text-stone-900 transition-colors duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] group-hover:text-stone-800">
-                                  {item.fields.Title}
-                                </h2>
-                                <p className="mt-1.5 text-xs text-stone-500">
-                                  {[item.fields.Category, item.fields.Region?.[0]]
-                                    .filter(Boolean)
-                                    .map((value) => stripEmoji(String(value)))
-                                    .join(" ｜ ")}
-                                </p>
-                              </div>
-                            </Link>
-                          ))}
+                                {showSubtitleBelow ? (
+                                  <div className="px-2 pb-2 pt-3 text-left sm:px-1 sm:pb-2">
+                                    <p className="line-clamp-2 text-xs font-semibold leading-snug tracking-tight text-stone-700 sm:text-[0.9rem]">
+                                      {cardSubtitle}
+                                    </p>
+                                  </div>
+                                ) : null}
+                              </Link>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

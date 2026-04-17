@@ -23,6 +23,8 @@ export type ArticleApiData = {
   docsUrl: string;
   documentId: string;
   tags?: string[];
+  /** Category ｜ Region·Region ｜ Tags…，与 Playbook 元信息分隔规则一致 */
+  coverMetaLine?: string;
   docTitle?: string;
   debug?: boolean;
   content: string;

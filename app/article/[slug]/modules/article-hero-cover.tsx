@@ -18,7 +18,7 @@ export function ArticleHeroCover({
   titleSentinelRef,
   stickyVisible,
   article,
-  coverTags,
+  coverMetaText,
   articleTitle,
   articleSubtitle,
   articleSummary,
@@ -29,7 +29,8 @@ export function ArticleHeroCover({
   titleSentinelRef: RefObject<HTMLDivElement | null>;
   stickyVisible: boolean;
   article: ArticleLike;
-  coverTags: string[];
+  /** Category ｜ Region·… ｜ Tags…，已由上游拼好 */
+  coverMetaText: string;
   articleTitle: string;
   articleSubtitle: string | null;
   articleSummary: string | null;
@@ -104,7 +105,7 @@ export function ArticleHeroCover({
         />
         <div
           ref={titleSentinelRef}
-          className="relative z-10 mx-auto max-w-[860px] px-5 py-20 text-center sm:px-8 sm:py-28 lg:py-45"
+          className="relative z-10 mx-auto max-w-[960px] px-5 py-20 text-center sm:px-8 sm:py-28 lg:py-45"
         >
           {!article ? (
             <div className="mb-4 flex items-center justify-center gap-2">
@@ -112,9 +113,9 @@ export function ArticleHeroCover({
               <span className="h-6 w-14 animate-pulse rounded-full bg-white/60" />
               <span className="h-6 w-20 animate-pulse rounded-full bg-white/60" />
             </div>
-          ) : coverTags.length > 0 ? (
+          ) : coverMetaText.trim() ? (
             <p className="mb-3 text-center text-base font-medium tracking-wide text-white/70">
-              {coverTags.join(" · ")}
+              {coverMetaText}
             </p>
           ) : null}
 

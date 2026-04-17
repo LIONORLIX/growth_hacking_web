@@ -147,6 +147,11 @@ export default function ArticlePage() {
       ).slice(0, 6),
     [article?.tags]
   );
+  const coverMetaText = useMemo(() => {
+    const line = article?.coverMetaLine?.trim();
+    if (line) return line;
+    return coverTags.join(" · ");
+  }, [article?.coverMetaLine, coverTags]);
   const [activeTocId, setActiveTocId] = useState<string>("");
   const [titleStuck, setTitleStuck] = useState(false);
   const titleSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -370,6 +375,8 @@ export default function ArticlePage() {
               content?: string;
               imageUrls?: string[];
               blocks?: ArticleApiData["blocks"];
+              tags?: string[];
+              coverMetaLine?: string;
             };
 
             if (cancelled) break;
@@ -384,6 +391,8 @@ export default function ArticlePage() {
                 content: msg.content ?? "",
                 imageUrls: msg.imageUrls ?? [],
                 blocks: msg.blocks,
+                tags: msg.tags ?? [],
+                coverMetaLine: msg.coverMetaLine,
                 partial: true,
               });
               setLoading(false);
@@ -457,7 +466,7 @@ export default function ArticlePage() {
           titleSentinelRef={titleSentinelRef}
           stickyVisible={titleStuck}
           article={article}
-          coverTags={coverTags}
+          coverMetaText={coverMetaText}
           articleTitle={articleTitle}
           articleSubtitle={articleSubtitle}
           articleSummary={articleSummary}
