@@ -4,7 +4,7 @@
   color: #1f2937;
   line-height: 1.86;
   letter-spacing: 0;
-  max-width: 860px;
+  max-width: 100%;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   font-size: 1rem;
@@ -197,6 +197,28 @@
   line-break: auto;
 }
 
+.calloutBulletList {
+  margin: 0;
+  padding-left: 1.05rem;
+  list-style: disc;
+}
+
+.calloutOrderedList {
+  margin: 0;
+  padding-left: 1.2rem;
+  list-style: decimal;
+}
+
+.calloutListItem {
+  margin: 0.35rem 0;
+  line-height: 1.72;
+  color: #334155;
+}
+
+.calloutListItem::marker {
+  color: #64748b;
+}
+
 .quoteBlock {
   margin: 1.55rem 0;
   padding: 0.45rem 0 0.45rem 1.25rem;
@@ -374,7 +396,7 @@
 
 .tableWrap {
   margin: 1.5rem 0;
-  overflow-x: auto;
+  overflow-x: hidden;
   border-radius: 0.65rem;
   border: 1px solid #e2e8f0;
   width: 100%;
@@ -384,7 +406,8 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 560px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .th {

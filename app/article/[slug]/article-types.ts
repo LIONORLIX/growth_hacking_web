@@ -46,6 +46,8 @@ export type ArticleApiData = {
     columnWidthRatios?: number[];
     /** 与表格单元格行优先顺序一致，飞书 merge_info */
     tableCellMerge?: Array<{ row_span: number; col_span: number }>;
+    /** 与表格列同序，飞书表格列宽比例（如有） */
+    tableColumnWidthRatios?: number[];
     raw?: unknown;
   }[];
 };

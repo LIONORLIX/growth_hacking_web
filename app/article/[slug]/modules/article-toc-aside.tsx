@@ -11,8 +11,8 @@ export function ArticleTocAside({
   activeTocId: string;
 }) {
   return (
-    <aside className="hidden lg:row-span-2 lg:row-start-1 lg:block">
-      <nav className="sticky top-[110px] max-h-[calc(100vh-130px)] overflow-auto pr-4">
+    <aside className="hidden lg:absolute lg:inset-y-0 lg:left-0 lg:z-20 lg:block lg:w-[220px]">
+      <nav className="sticky top-[110px] max-h-[calc(100vh-130px)] overflow-auto pl-2 pr-4">
         <ul className="space-y-1">
           {tocItems.map((item) => (
             <li key={item.id}>

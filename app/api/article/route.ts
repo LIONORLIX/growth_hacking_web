@@ -221,6 +221,8 @@ type ArticleBlockPayload = {
   columnWidthRatios?: number[];
   /** 与表格单元格展平顺序一致（行优先），飞书 property.merge_info */
   tableCellMerge?: Array<{ row_span: number; col_span: number }>;
+  /** 与表格列同序；来源于 table.property.* 的列宽比例信息 */
+  tableColumnWidthRatios?: number[];
   raw?: unknown;
 };
 
@@ -396,8 +398,8 @@ function extractTextFromBlockTree(
     renderElementsToMarkdown(block.heading5?.elements) ||
     renderElementsToMarkdown(block.heading6?.elements) ||
     renderElementsToMarkdown(block.text?.elements) ||
-    renderElementsToMarkdown(block.bullet?.elements) ||
-    renderElementsToMarkdown(block.ordered?.elements) ||
+    (block.bullet ? `- ${renderElementsToMarkdown(block.bullet.elements)}` : "") ||
+    (block.ordered ? `1. ${renderElementsToMarkdown(block.ordered.elements)}` : "") ||
     renderElementsToMarkdown(block.callout?.elements) ||
     renderElementsToMarkdown(block.quote?.elements) ||
     renderElementsToMarkdown(block.quote_container?.elements) ||
@@ -443,6 +445,29 @@ function buildBlockById(items: DocxBlock[]): Map<string, DocxBlock> {
     if (b.block_id) map.set(b.block_id, b);
   }
   return map;
+}
+
+function pickTableColumnWidthRatios(
+  tableProperty: DocxBlock["table"]["property"] | undefined,
+  colCount: number
+): number[] | null {
+  if (!tableProperty || colCount <= 0) return null;
+  const candidates: unknown[] = [
+    (tableProperty as Record<string, unknown>).column_width_ratio,
+    (tableProperty as Record<string, unknown>).column_width_ratios,
+    (tableProperty as Record<string, unknown>).column_width,
+    (tableProperty as Record<string, unknown>).column_widths,
+    (tableProperty as Record<string, unknown>).width_ratio,
+    (tableProperty as Record<string, unknown>).width_ratios,
+  ];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate) || candidate.length !== colCount) continue;
+    const normalized = candidate.map((item) => Number(item));
+    if (normalized.every((n) => Number.isFinite(n) && n > 0)) {
+      return normalized;
+    }
+  }
+  return null;
 }
 
 function normalizeBlocks(
@@ -524,6 +549,13 @@ function normalizeBlocks(
         }
         normalized.type = "table";
         normalized.rows = rows;
+        const tableColumnWidthRatios = pickTableColumnWidthRatios(
+          block.table?.property,
+          colCount
+        );
+        if (tableColumnWidthRatios) {
+          normalized.tableColumnWidthRatios = tableColumnWidthRatios;
+        }
         const mergeFlat = normalizeTableCellMergeFlat(
           block.table?.property?.merge_info,
           cells.length

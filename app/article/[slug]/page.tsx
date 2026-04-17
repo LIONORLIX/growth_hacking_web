@@ -103,6 +103,10 @@ export default function ArticlePage() {
     )?.text;
     return fromBlocks?.trim() || "";
   }, [article]);
+  const stickyBarTitle = useMemo(() => {
+    if (articleRecordTitle?.trim()) return articleRecordTitle.trim();
+    return articleTitle;
+  }, [articleRecordTitle, articleTitle]);
   const tocItems = useMemo((): TocItem[] => {
     const items: TocItem[] = [];
     if (article?.blocks?.length) {
@@ -460,10 +464,10 @@ export default function ArticlePage() {
           backgroundPosition: "center center",
         }}
       />
-      <div className="relative w-full px-5 sm:px-8 lg:px-10">
+      <div className="relative w-full px-4 sm:px-6 lg:px-8">
         <ArticleStickyTitleBar
           visible={titleStuck}
-          articleTitle={articleTitle}
+          articleTitle={stickyBarTitle}
           docsUrl={article?.docsUrl}
         />
 
@@ -481,10 +485,10 @@ export default function ArticlePage() {
           articleThemeAccentHexes={articleThemeAccentHexes}
         />
 
-        <div className="mt-24 lg:grid lg:grid-cols-[240px_minmax(0,860px)] lg:justify-center lg:gap-10">
+        <div className="relative mt-24 lg:pl-[240px] lg:pr-4">
           <ArticleTocAside tocItems={tocItems} activeTocId={activeTocId} />
 
-          <article className="lg:col-start-2">
+          <article className="mx-auto max-w-[920px]">
             {loading && !article && <ArticleBodyPreviewSkeleton />}
 
             {article && (

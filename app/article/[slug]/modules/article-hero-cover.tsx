@@ -52,7 +52,7 @@ export function ArticleHeroCover({
   articleThemeAccentHexes: string[];
 }) {
   return (
-    <div className="-mx-5 mb-6 overflow-hidden border-b border-gray-100 sm:-mx-8 lg:-mx-10">
+    <div className="-mx-4 mb-6 overflow-hidden border-b border-gray-100 sm:-mx-6 lg:-mx-8">
       <div
         className={`fixed inset-x-0 top-0 z-[65] transition-[opacity,transform] duration-200 ${
           stickyVisible
@@ -118,7 +118,7 @@ export function ArticleHeroCover({
         />
         <div
           ref={titleSentinelRef}
-          className="relative z-10 mx-auto max-w-[960px] px-5 py-20 text-center sm:px-8 sm:py-28 lg:py-45"
+          className="relative z-10 mx-auto max-w-[1024px] px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-45"
         >
           {!article ? (
             <div className="mb-4 flex items-center justify-center gap-2">

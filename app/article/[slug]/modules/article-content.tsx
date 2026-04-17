@@ -44,6 +44,26 @@ function gridTemplateColumnsFromRatios(
   return ratios.map((r) => `minmax(0, ${r}fr)`).join(" ");
 }
 
+function normalizeColumnRatios(
+  columnCount: number,
+  ratios: number[] | undefined
+): number[] {
+  const n = Math.max(columnCount, 1);
+  if (!ratios || ratios.length !== n) {
+    return Array.from({ length: n }, () => 1);
+  }
+  if (!ratios.every((r) => Number.isFinite(r) && r > 0)) {
+    return Array.from({ length: n }, () => 1);
+  }
+  return ratios;
+}
+
+function cellFontSizeRemByShare(share: number): number {
+  // 进一步强化压缩：窄列显著变小；同表统一取最小列对应字号
+  const rem = 0.58 + share * 1.05;
+  return Math.min(1.02, Math.max(0.68, rem));
+}
+
 type DocPayloadBlock = NonNullable<ArticleApiData["blocks"]>[number];
 
 type DocPayloadRun =
@@ -212,9 +232,37 @@ export function ArticleContent({
                 if (!block.text?.trim() && isPartial) {
                   return <ArticleSkeletonCallout key={block.id} />;
                 }
+                const calloutText = block.text ?? "";
+                const calloutListLike = parseListText(calloutText);
+                if (calloutListLike?.kind === "ul") {
+                  return (
+                    <div key={block.id} className={styles.calloutBlock}>
+                      <ul className={styles.calloutBulletList}>
+                        {calloutListLike.items.map((item, itemIndex) => (
+                          <li key={`${block.id}-callout-ul-${itemIndex}`} className={styles.calloutListItem}>
+                            {renderInline(item, `block-callout-ul-${index}-${itemIndex}`)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                }
+                if (calloutListLike?.kind === "ol") {
+                  return (
+                    <div key={block.id} className={styles.calloutBlock}>
+                      <ol className={styles.calloutOrderedList}>
+                        {calloutListLike.items.map((item, itemIndex) => (
+                          <li key={`${block.id}-callout-ol-${itemIndex}`} className={styles.calloutListItem}>
+                            {renderInline(item, `block-callout-ol-${index}-${itemIndex}`)}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  );
+                }
                 return (
                   <div key={block.id} className={styles.calloutBlock}>
-                    {renderInline(block.text ?? "", `block-callout-${index}`)}
+                    {renderInline(calloutText, `block-callout-${index}`)}
                   </div>
                 );
               }
@@ -292,10 +340,29 @@ export function ArticleContent({
                   rows,
                   block.tableCellMerge
                 );
+                const colCount = mergedRows[0]?.length ?? 0;
+                const ratios = normalizeColumnRatios(
+                  colCount,
+                  block.tableColumnWidthRatios
+                );
+                const ratioSum = ratios.reduce((sum, value) => sum + value, 0) || 1;
+                const minColumnShare =
+                  ratios.length > 0 ? Math.min(...ratios) / ratioSum : 1;
+                const unifiedTableFontSizeRem = cellFontSizeRemByShare(minColumnShare);
                 const [header, ...body] = mergedRows;
                 return (
                   <div key={block.id} className={styles.tableWrap}>
                     <table className={styles.table}>
+                      {colCount > 0 ? (
+                        <colgroup>
+                          {ratios.map((ratio, colIdx) => (
+                            <col
+                              key={`${block.id}-col-${colIdx}`}
+                              style={{ width: `${(ratio / ratioSum) * 100}%` }}
+                            />
+                          ))}
+                        </colgroup>
+                      ) : null}
                       {header?.length ? (
                         <thead>
                           <tr>
@@ -306,6 +373,7 @@ export function ArticleContent({
                                   className={styles.th}
                                   rowSpan={cell.rowSpan && cell.rowSpan > 1 ? cell.rowSpan : undefined}
                                   colSpan={cell.colSpan && cell.colSpan > 1 ? cell.colSpan : undefined}
+                                  style={{ fontSize: `${unifiedTableFontSizeRem}rem` }}
                                 >
                                   {renderRichCellContent(
                                     cell.text,
@@ -327,6 +395,7 @@ export function ArticleContent({
                                   className={styles.td}
                                   rowSpan={cell.rowSpan && cell.rowSpan > 1 ? cell.rowSpan : undefined}
                                   colSpan={cell.colSpan && cell.colSpan > 1 ? cell.colSpan : undefined}
+                                  style={{ fontSize: `${unifiedTableFontSizeRem}rem` }}
                                 >
                                   {renderRichCellContent(
                                     cell.text,
