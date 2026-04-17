@@ -1341,12 +1341,12 @@ export default function PlaybookPage() {
               >
                 <div
                   ref={filterBarRef}
-                  className="sticky z-50 -mx-6 bg-white px-6 py-3 sm:-mx-8 sm:px-8 sm:py-4 lg:mx-0 lg:px-0"
+                  className="sticky z-50 -mx-6 bg-white px-6 py-0 sm:-mx-8 sm:px-8 sm:py-0 lg:mx-0 lg:px-0"
                   style={{ top: 0 }}
                 >
                   <div className="relative">
-                    <div className="overflow-x-auto pb-1">
-                      <div className="flex min-w-max items-center justify-between gap-8 border-b border-stone-200 text-sm">
+                    <div className="overflow-x-auto">
+                      <div className="flex min-w-max items-center justify-between gap-8 border-b border-stone-200 pt-4 text-sm">
                         <div className="flex items-center gap-5">
                           <button
                             onClick={() => setSelectedCategory(null)}
@@ -1427,7 +1427,7 @@ export default function PlaybookPage() {
                       >
                         <div
                           key={cardGridRevealEpoch}
-                          className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-6"
+                          className="grid grid-cols-1 gap-6 pt-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-6"
                         >
                           {visibleItems.map((item, i) => {
                             const cardTitle = stripBrTags(

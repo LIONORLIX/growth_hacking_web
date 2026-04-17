@@ -106,9 +106,9 @@ export default function CardCoverVideoPage() {
   const themeHex = themeHexes[0] ?? null;
   const themeAccentHexes = themeHexes.slice(1);
 
-  const [outW, setOutW] = useState(720);
-  const [outH, setOutH] = useState(720);
-  const [durationSec, setDurationSec] = useState(6);
+  const [outW, setOutW] = useState(300);
+  const [outH, setOutH] = useState(300);
+  const [durationSec, setDurationSec] = useState(5);
   const [fps, setFps] = useState(24);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("auto");
 
@@ -472,7 +472,7 @@ export default function CardCoverVideoPage() {
                       max={3840}
                       disabled={recording || batchRunning}
                       value={outW}
-                      onChange={(e) => setOutW(Number(e.target.value) || 720)}
+                      onChange={(e) => setOutW(Number(e.target.value) || 300)}
                       className="mt-1 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
                     />
                   </label>
@@ -484,7 +484,7 @@ export default function CardCoverVideoPage() {
                       max={2160}
                       disabled={recording || batchRunning}
                       value={outH}
-                      onChange={(e) => setOutH(Number(e.target.value) || 720)}
+                      onChange={(e) => setOutH(Number(e.target.value) || 300)}
                       className="mt-1 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
                     />
                   </label>
@@ -510,7 +510,7 @@ export default function CardCoverVideoPage() {
                       step={0.5}
                       disabled={recording || batchRunning}
                       value={durationSec}
-                      onChange={(e) => setDurationSec(Number(e.target.value) || 6)}
+                      onChange={(e) => setDurationSec(Number(e.target.value) || 5)}
                       className="mt-1 w-full rounded border border-stone-300 px-2 py-1.5 text-sm"
                     />
                   </label>

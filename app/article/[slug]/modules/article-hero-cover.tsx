@@ -149,7 +149,7 @@ export function ArticleHeroCover({
           </h1>
 
           {article && articleSummary?.trim() ? (
-            <p className="mx-auto mt-6 max-w-[700px] py-6 text-center text-xl font-semibold leading-relaxed text-white/90">
+            <p className="mx-auto mt-6 max-w-[700px] py-6 text-center text-base font-semibold leading-relaxed text-white/90">
               {articleSummary}
             </p>
           ) : null}
