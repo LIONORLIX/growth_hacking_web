@@ -9,6 +9,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ReactNode,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -32,6 +33,22 @@ import { itemHasHeroHighlight, itemHasPublishedStatus } from "@/lib/playbook-sta
 const PlaybookHeroShaderBackground = dynamic(() => import("./playbook-hero-shader-bg"), {
   ssr: false,
 });
+
+const BR_TAG_REGEX = /<br\s*\/?>/gi;
+
+function renderTextWithBreaks(text: string): ReactNode {
+  const segments = text.split(BR_TAG_REGEX);
+  return segments.map((segment, index) => (
+    <span key={`${segment}-${index}`}>
+      {segment}
+      {index < segments.length - 1 ? <br /> : null}
+    </span>
+  ));
+}
+
+function stripBrTags(text: string): string {
+  return text.replace(BR_TAG_REGEX, "").trim();
+}
 
 type BaseRecord = {
   record_id: string;
@@ -285,11 +302,11 @@ function PlaybookHeroSlidesCardChrome({
             ) : null}
             {headlineSecondary ? (
               <p className="mb-2 text-center text-sm font-semibold tracking-tight text-white/90 sm:mb-3 sm:text-base">
-                {headlineSecondary}
+                {renderTextWithBreaks(headlineSecondary)}
               </p>
             ) : null}
             <h1 className="mx-auto max-w-[960px] text-balance text-2xl font-semibold leading-[1.1] tracking-tight text-white sm:text-3xl md:text-4xl lg:text-5xl">
-              {headlinePrimary}
+              {renderTextWithBreaks(headlinePrimary)}
             </h1>
             <Link
               href={copyHref}
@@ -500,11 +517,11 @@ function PlaybookHeroSlidesFullscreenChrome({
             ) : null}
             {headlineSecondary ? (
               <p className="mb-3 text-left text-base font-semibold tracking-tight text-white/90 sm:mb-4 sm:text-lg">
-                {headlineSecondary}
+                {renderTextWithBreaks(headlineSecondary)}
               </p>
             ) : null}
             <h1 className="text-balance text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
-              {headlinePrimary}
+              {renderTextWithBreaks(headlinePrimary)}
             </h1>
             <Link
               href={copyHref}
@@ -1413,11 +1430,11 @@ export default function PlaybookPage() {
                           className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-6"
                         >
                           {visibleItems.map((item, i) => {
-                            const cardTitle = playbookFieldString(item.fields, "Title", "title");
-                            const cardSubtitle = playbookFieldString(
-                              item.fields,
-                              "Subtitle",
-                              "subtitle"
+                            const cardTitle = stripBrTags(
+                              playbookFieldString(item.fields, "Title", "title")
+                            );
+                            const cardSubtitle = stripBrTags(
+                              playbookFieldString(item.fields, "Subtitle", "subtitle")
                             );
                             const cardMainHeadline = cardTitle || cardSubtitle || "Untitled";
                             const showSubtitleBelow = Boolean(cardTitle && cardSubtitle);

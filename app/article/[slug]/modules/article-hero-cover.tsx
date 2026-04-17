@@ -14,11 +14,22 @@ type ArticleLike = {
   docsUrl?: string;
 } | null;
 
+function renderTextWithBreaks(text: string) {
+  const segments = text.split("<br>");
+  return segments.map((segment, index) => (
+    <span key={`${segment}-${index}`}>
+      {segment}
+      {index < segments.length - 1 ? <br /> : null}
+    </span>
+  ));
+}
+
 export function ArticleHeroCover({
   titleSentinelRef,
   stickyVisible,
   article,
   coverMetaText,
+  articleRecordTitle,
   articleTitle,
   articleSubtitle,
   articleSummary,
@@ -31,6 +42,8 @@ export function ArticleHeroCover({
   article: ArticleLike;
   /** Category ｜ Region·… ｜ Tags…，已由上游拼好 */
   coverMetaText: string;
+  /** 多维表记录标题（Title 字段），用于 Hero 辅线 */
+  articleRecordTitle: string | null;
   articleTitle: string;
   articleSubtitle: string | null;
   articleSummary: string | null;
@@ -114,24 +127,24 @@ export function ArticleHeroCover({
               <span className="h-6 w-20 animate-pulse rounded-full bg-white/60" />
             </div>
           ) : coverMetaText.trim() ? (
-            <p className="mb-3 text-center text-base font-medium tracking-wide text-white/70">
+            <p className="mb-3 text-center text-sm font-medium tracking-wide text-white/70 sm:text-base">
               {coverMetaText}
             </p>
           ) : null}
 
-          {article && articleSubtitle?.trim() && articleTitle ? (
-            <p className="mt-6 mb-3 text-center text-base font-semibold tracking-tight text-white/90">
-              {articleTitle}
+          {article && articleSubtitle?.trim() && articleRecordTitle?.trim() ? (
+            <p className="mt-6 mb-3 text-center text-[20px] font-semibold tracking-tight text-white/90">
+              {articleRecordTitle}
             </p>
           ) : null}
 
-          <h1 className="text-5xl font-extrabold tracking-tight text-white lg:text-[3rem] lg:leading-[1.15]">
+          <h1 className="text-4xl font-extrabold tracking-tight text-white lg:text-[2.75rem] lg:leading-[1.15]">
             {!article ? (
               <span className="mx-auto block h-10 w-2/3 animate-pulse rounded bg-white/25" />
             ) : articleSubtitle?.trim() ? (
-              articleSubtitle
+              renderTextWithBreaks(articleSubtitle)
             ) : (
-              articleTitle
+              renderTextWithBreaks(articleTitle)
             )}
           </h1>
 

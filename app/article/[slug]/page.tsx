@@ -74,6 +74,7 @@ export default function ArticlePage() {
   const [articleThemeHex, setArticleThemeHex] = useState<string | null>(null);
   const [articleThemeAccentHexes, setArticleThemeAccentHexes] = useState<string[]>([]);
   const [articleSeed, setArticleSeed] = useState<string | null>(null);
+  const [articleRecordTitle, setArticleRecordTitle] = useState<string | null>(null);
   const [articleSubtitle, setArticleSubtitle] = useState<string | null>(null);
   const [articleSummary, setArticleSummary] = useState<string | null>(null);
   const articleBlocks = useMemo(
@@ -292,6 +293,7 @@ export default function ArticlePage() {
       setArticleThemeHex(null);
       setArticleThemeAccentHexes([]);
       setArticleSeed(null);
+      setArticleRecordTitle(null);
       setArticleSubtitle(null);
       setArticleSummary(null);
 
@@ -327,6 +329,9 @@ export default function ArticlePage() {
 
           const record = playbookResult.data;
           recordId = record.record_id;
+          setArticleRecordTitle(
+            (record.fields["Title"] as string) || (record.fields["title"] as string) || null
+          );
           setArticleSubtitle((record.fields["Subtitle"] as string) || (record.fields["subtitle"] as string) || null);
           setArticleSummary((record.fields["Summary"] as string) || (record.fields["summary"] as string) || null);
           setArticleSeed(
@@ -467,6 +472,7 @@ export default function ArticlePage() {
           stickyVisible={titleStuck}
           article={article}
           coverMetaText={coverMetaText}
+          articleRecordTitle={articleRecordTitle}
           articleTitle={articleTitle}
           articleSubtitle={articleSubtitle}
           articleSummary={articleSummary}
