@@ -188,6 +188,7 @@ type DocxBlock = {
   media?: { token?: string; caption?: { content?: string }; mime_type?: string; name?: string };
   file?: { token?: string; name?: string; mime_type?: string };
   board?: { token?: string };
+  mindnote?: { token?: string };
   divider?: Record<string, unknown>;
   /** 分栏块：列数 2–5 */
   grid?: { column_size?: number };
@@ -223,8 +224,14 @@ type ArticleBlockPayload = {
   tableCellMerge?: Array<{ row_span: number; col_span: number }>;
   /** 与表格列同序；来源于 table.property.* 的列宽比例信息 */
   tableColumnWidthRatios?: number[];
+  mindnoteToken?: string;
+  mindnoteUrl?: string;
   raw?: unknown;
 };
+
+const TABLE_CELL_GRID_COLUMN_SPLITTER = "@@__TABLE_CELL_GRID_COLUMN_SPLITTER__@@";
+const TABLE_CELL_GRID_BLOCK_START = "@@__TABLE_CELL_GRID_BLOCK_START__@@";
+const TABLE_CELL_GRID_BLOCK_END = "@@__TABLE_CELL_GRID_BLOCK_END__@@";
 
 function looksLikeVideoByMeta(name?: string, mimeType?: string): boolean {
   const mime = (mimeType ?? "").toLowerCase();
@@ -303,6 +310,12 @@ function blockToMarkdownLine(block: DocxBlock): string | null {
     const url = `/api/feishu-board-image?token=${encodeURIComponent(block.board.token)}`;
     return `![Board Snapshot](${url})`;
   }
+  if (block.mindnote?.token) {
+    const url = `https://bytedance.larkoffice.com/mindnote/${encodeURIComponent(
+      block.mindnote.token
+    )}`;
+    return `[思维导图](${url})`;
+  }
   if (block.text) return renderElementsToMarkdown(block.text.elements);
   if (block.block_type === 19) return "---";
   return null;
@@ -369,6 +382,17 @@ function normalizeDocxBlock(block: DocxBlock): ArticleBlockPayload {
       caption: "Board Snapshot",
     };
   }
+  if (block.mindnote?.token) {
+    return {
+      id,
+      type: "mindnote",
+      mindnoteToken: block.mindnote.token,
+      mindnoteUrl: `https://bytedance.larkoffice.com/mindnote/${encodeURIComponent(
+        block.mindnote.token
+      )}`,
+      caption: "MindNote",
+    };
+  }
   if (block.divider || block.block_type === 19) return { id, type: "divider" };
   if (block.grid) return { id, type: "grid", raw: block.grid };
   if (block.children) return { id, type: "children", raw: block.children };
@@ -378,9 +402,25 @@ function normalizeDocxBlock(block: DocxBlock): ArticleBlockPayload {
 function extractTextFromBlockTree(
   block: DocxBlock | undefined,
   blockById: Map<string, DocxBlock>,
-  depth = 0
+  depth = 0,
+  allowGridSplit = true
 ): string {
   if (!block || depth > 6) return "";
+  if (allowGridSplit && block.grid && (block.children?.length ?? 0) > 0) {
+    const columns = (block.children ?? [])
+      .map((childId) =>
+        extractTextFromBlockTree(blockById.get(childId), blockById, depth + 1, false).trim()
+      )
+      .filter(Boolean);
+    if (columns.length > 1) {
+      return `${TABLE_CELL_GRID_BLOCK_START}\n${columns.join(
+        `\n${TABLE_CELL_GRID_COLUMN_SPLITTER}\n`
+      )}\n${TABLE_CELL_GRID_BLOCK_END}`;
+    }
+    if (columns.length === 1) {
+      return columns[0]!;
+    }
+  }
   const imageLine = block.image?.token
     ? `![${block.image.caption?.content ?? ""}](/api/feishu-image?token=${encodeURIComponent(
         block.image.token
@@ -407,7 +447,9 @@ function extractTextFromBlockTree(
     videoLine;
 
   const childText = (block.children ?? [])
-    .map((childId) => extractTextFromBlockTree(blockById.get(childId), blockById, depth + 1))
+    .map((childId) =>
+      extractTextFromBlockTree(blockById.get(childId), blockById, depth + 1, allowGridSplit)
+    )
     .filter(Boolean)
     .join("\n");
 
@@ -485,6 +527,11 @@ function normalizeBlocks(
   return rootBlocks.map((block) => {
     const normalized = normalizeDocxBlock(block);
     if (textLikeTypes.has(normalized.type)) {
+      // bullet / ordered 自身节点已由 normalizeDocxBlock 正确抽取文本；
+      // 若再走树提取会把 "- " / "1. " 前缀重复注入，导致列表渲染异常。
+      if (normalized.type === "bullet" || normalized.type === "ordered") {
+        return normalized;
+      }
       normalized.text = extractTextFromBlockTree(block, blockById);
     }
     if (normalized.type === "grid") {

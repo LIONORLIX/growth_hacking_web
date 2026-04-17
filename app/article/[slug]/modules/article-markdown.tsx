@@ -18,6 +18,9 @@ import styles from "./article-prose.module.css";
 
 /** 标题自动序号与正文之间：抑制在边界处断行（Unicode Word Joiner） */
 export const HEADING_NUMBER_TITLE_GLUE = "\u2060";
+const TABLE_CELL_GRID_COLUMN_SPLITTER = "@@__TABLE_CELL_GRID_COLUMN_SPLITTER__@@";
+const TABLE_CELL_GRID_BLOCK_START = "@@__TABLE_CELL_GRID_BLOCK_START__@@";
+const TABLE_CELL_GRID_BLOCK_END = "@@__TABLE_CELL_GRID_BLOCK_END__@@";
 
 export function isFeishuMediaProxyUrl(value: string): boolean {
   const v = value.trim();
@@ -138,10 +141,109 @@ function renderNoBreakShortCjk(text: string, keyPrefix: string): ReactNode[] {
   return nodes.length ? nodes : [<Fragment key={`${keyPrefix}-full`}>{text}</Fragment>];
 }
 
-export function renderRichCellContent(text: string, keyPrefix: string): ReactNode[] {
+export function renderRichCellContent(
+  text: string,
+  keyPrefix: string,
+  options?: { allowColumnSplit?: boolean }
+): ReactNode[] {
+  const allowColumnSplit = options?.allowColumnSplit ?? true;
+  const splitColumns = allowColumnSplit
+    ? text
+        .split(TABLE_CELL_GRID_COLUMN_SPLITTER)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
+  const hasWrappedGridBlock =
+    allowColumnSplit &&
+    text.includes(TABLE_CELL_GRID_BLOCK_START) &&
+    text.includes(TABLE_CELL_GRID_BLOCK_END);
+  if (hasWrappedGridBlock) {
+    const nodes: ReactNode[] = [];
+    const blockRegex = new RegExp(
+      `${TABLE_CELL_GRID_BLOCK_START}([\\s\\S]*?)${TABLE_CELL_GRID_BLOCK_END}`,
+      "g"
+    );
+    let lastIndex = 0;
+    let match: RegExpExecArray | null = null;
+    while ((match = blockRegex.exec(text)) !== null) {
+      const before = text.slice(lastIndex, match.index).trim();
+      if (before) {
+        nodes.push(
+          ...renderRichCellContent(before, `${keyPrefix}-before-${nodes.length}`, {
+            allowColumnSplit: false,
+          })
+        );
+      }
+      const innerColumns = match[1]
+        .split(TABLE_CELL_GRID_COLUMN_SPLITTER)
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (innerColumns.length > 1) {
+        nodes.push(
+          <div
+            key={`${keyPrefix}-table-grid-${nodes.length}`}
+            className={styles.tableCellGridColumns}
+            style={{
+              gridTemplateColumns: `repeat(${innerColumns.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {innerColumns.map((column, columnIndex) => (
+              <div
+                key={`${keyPrefix}-table-grid-col-${nodes.length}-${columnIndex}`}
+                className={styles.tableCellGridColumn}
+              >
+                {renderRichCellContent(column, `${keyPrefix}-table-grid-col-${columnIndex}`, {
+                  allowColumnSplit: false,
+                })}
+              </div>
+            ))}
+          </div>
+        );
+      } else if (innerColumns.length === 1) {
+        nodes.push(
+          ...renderRichCellContent(innerColumns[0]!, `${keyPrefix}-grid-single-${nodes.length}`, {
+            allowColumnSplit: false,
+          })
+        );
+      }
+      lastIndex = blockRegex.lastIndex;
+    }
+    const tail = text.slice(lastIndex).trim();
+    if (tail) {
+      nodes.push(
+        ...renderRichCellContent(tail, `${keyPrefix}-tail-${nodes.length}`, {
+          allowColumnSplit: false,
+        })
+      );
+    }
+    if (nodes.length) return nodes;
+  }
+
+  if (splitColumns.length > 1) {
+    return [
+      <div
+        key={`${keyPrefix}-table-grid`}
+        className={styles.tableCellGridColumns}
+        style={{
+          gridTemplateColumns: `repeat(${splitColumns.length}, minmax(0, 1fr))`,
+        }}
+      >
+        {splitColumns.map((column, columnIndex) => (
+          <div key={`${keyPrefix}-table-grid-col-${columnIndex}`} className={styles.tableCellGridColumn}>
+            {renderRichCellContent(column, `${keyPrefix}-table-grid-col-${columnIndex}`, {
+              allowColumnSplit: false,
+            })}
+          </div>
+        ))}
+      </div>,
+    ];
+  }
   const segments = parseContentSegments(text);
   const nodes: ReactNode[] = [];
   let idx = 0;
+  const bulletRegex = /^[-*+•]\s+/;
+  const orderedRegex = /^\d+[.)、]\s+/;
 
   for (const seg of segments) {
     if (seg.type === "image") {
@@ -177,23 +279,63 @@ export function renderRichCellContent(text: string, keyPrefix: string): ReactNod
     }
     const lines = seg.value.split(/\r?\n/).filter((line) => line.trim().length > 0);
     if (!lines.length) continue;
-    for (const line of lines) {
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const line = lines[lineIndex]!;
       if (isFeishuMediaProxyUrl(line)) {
         nodes.push(
-          <video
-            key={`${keyPrefix}-video-line-${idx++}`}
+          <ArticleLazyImage
+            key={`${keyPrefix}-img-line-${idx++}`}
             src={line.trim()}
-            controls
-            playsInline
-            preload="metadata"
+            alt={`${keyPrefix}-image-line`}
             className={styles.gridColumnImage}
           />
         );
         continue;
       }
+      const trimmed = line.trim();
+      if (bulletRegex.test(trimmed)) {
+        const items: string[] = [];
+        while (lineIndex < lines.length) {
+          const current = lines[lineIndex]!.trim();
+          if (!bulletRegex.test(current)) break;
+          items.push(current.replace(bulletRegex, "").trim());
+          lineIndex += 1;
+        }
+        lineIndex -= 1;
+        nodes.push(
+          <ul key={`${keyPrefix}-txt-ul-${idx++}`} className={styles.bulletBlock}>
+            {items.map((item, itemIndex) => (
+              <li key={`${keyPrefix}-txt-ul-item-${idx++}-${itemIndex}`} className={styles.li}>
+                {renderInline(item, `${keyPrefix}-txt-ul-inline-${idx}-${itemIndex}`)}
+              </li>
+            ))}
+          </ul>
+        );
+        continue;
+      }
+      if (orderedRegex.test(trimmed)) {
+        const items: string[] = [];
+        while (lineIndex < lines.length) {
+          const current = lines[lineIndex]!.trim();
+          if (!orderedRegex.test(current)) break;
+          items.push(current.replace(orderedRegex, "").trim());
+          lineIndex += 1;
+        }
+        lineIndex -= 1;
+        nodes.push(
+          <ol key={`${keyPrefix}-txt-ol-${idx++}`} className={styles.orderedBlock}>
+            {items.map((item, itemIndex) => (
+              <li key={`${keyPrefix}-txt-ol-item-${idx++}-${itemIndex}`} className={styles.li}>
+                {renderInline(item, `${keyPrefix}-txt-ol-inline-${idx}-${itemIndex}`)}
+              </li>
+            ))}
+          </ol>
+        );
+        continue;
+      }
       nodes.push(
         <p key={`${keyPrefix}-txt-${idx++}`} className={styles.gridColumnText}>
-          {renderInline(line, `${keyPrefix}-inline-${idx}`)}
+          {renderInline(trimmed, `${keyPrefix}-inline-${idx}`)}
         </p>
       );
     }

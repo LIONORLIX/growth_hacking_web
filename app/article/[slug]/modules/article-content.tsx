@@ -1,7 +1,7 @@
 /**
  * 文章正文区域：按多维表 block 类型渲染（标题、表格、画板、分栏等），并列出原图链接。
  */
-import { Fragment, useMemo } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ArticleApiData, ArticleBlock } from "../article-types";
 import { PRESET_DOCUMENT_ID } from "../article-constants";
 import { buildHeadingId } from "../article-heading";
@@ -28,6 +28,79 @@ import {
 import { ArticleLazyImage } from "./article-lazy-image";
 import { ArticleSkeletonCallout, ArticleSkeletonGrid } from "./article-skeleton";
 import styles from "./article-prose.module.css";
+
+function TableOverflowHint({ children }: { children: ReactNode }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [hint, setHint] = useState({ left: false, right: false });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateHint = () => {
+      const maxScrollLeft = el.scrollWidth - el.clientWidth;
+      const hasOverflow = maxScrollLeft > 2;
+      if (!hasOverflow) {
+        setHint({ left: false, right: false });
+        return;
+      }
+      setHint({
+        left: el.scrollLeft > 2,
+        right: el.scrollLeft < maxScrollLeft - 2,
+      });
+    };
+
+    updateHint();
+    el.addEventListener("scroll", updateHint, { passive: true });
+    window.addEventListener("resize", updateHint);
+    return () => {
+      el.removeEventListener("scroll", updateHint);
+      window.removeEventListener("resize", updateHint);
+    };
+  }, []);
+
+  return (
+    <div className={styles.tableWrapHintHost}>
+      <div ref={containerRef} className={styles.tableWrap}>
+        {children}
+      </div>
+      {hint.left ? (
+        <span className={`${styles.tableOverflowHint} ${styles.tableOverflowHintLeft}`}>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={styles.tableOverflowHintIcon}
+          >
+            <path d="M19 12H5" />
+            <path d="M12 19l-7-7 7-7" />
+          </svg>
+        </span>
+      ) : null}
+      {hint.right ? (
+        <span className={`${styles.tableOverflowHint} ${styles.tableOverflowHintRight}`}>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={styles.tableOverflowHintIcon}
+          >
+            <path d="M5 12h14" />
+            <path d="M12 5l7 7-7 7" />
+          </svg>
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 /** 按飞书 width_ratio 生成 CSS Grid 列定义；缺失或无效时等分。 */
 function gridTemplateColumnsFromRatios(
@@ -237,9 +310,9 @@ export function ArticleContent({
                 if (calloutListLike?.kind === "ul") {
                   return (
                     <div key={block.id} className={styles.calloutBlock}>
-                      <ul className={styles.calloutBulletList}>
+                      <ul className={styles.bulletBlock}>
                         {calloutListLike.items.map((item, itemIndex) => (
-                          <li key={`${block.id}-callout-ul-${itemIndex}`} className={styles.calloutListItem}>
+                          <li key={`${block.id}-callout-ul-${itemIndex}`} className={styles.li}>
                             {renderInline(item, `block-callout-ul-${index}-${itemIndex}`)}
                           </li>
                         ))}
@@ -250,9 +323,9 @@ export function ArticleContent({
                 if (calloutListLike?.kind === "ol") {
                   return (
                     <div key={block.id} className={styles.calloutBlock}>
-                      <ol className={styles.calloutOrderedList}>
+                      <ol className={styles.orderedBlock}>
                         {calloutListLike.items.map((item, itemIndex) => (
-                          <li key={`${block.id}-callout-ol-${itemIndex}`} className={styles.calloutListItem}>
+                          <li key={`${block.id}-callout-ol-${itemIndex}`} className={styles.li}>
                             {renderInline(item, `block-callout-ol-${index}-${itemIndex}`)}
                           </li>
                         ))}
@@ -270,9 +343,37 @@ export function ArticleContent({
                 if (!block.text?.trim() && isPartial) {
                   return <ArticleSkeletonCallout key={block.id} />;
                 }
+                const quoteText = block.text ?? "";
+                const quoteListLike = parseListText(quoteText);
+                if (quoteListLike?.kind === "ul") {
+                  return (
+                    <blockquote key={block.id} className={styles.quoteBlock}>
+                      <ul className={styles.bulletBlock}>
+                        {quoteListLike.items.map((item, itemIndex) => (
+                          <li key={`${block.id}-quote-ul-${itemIndex}`} className={styles.li}>
+                            {renderInline(item, `block-quote-ul-${index}-${itemIndex}`)}
+                          </li>
+                        ))}
+                      </ul>
+                    </blockquote>
+                  );
+                }
+                if (quoteListLike?.kind === "ol") {
+                  return (
+                    <blockquote key={block.id} className={styles.quoteBlock}>
+                      <ol className={styles.orderedBlock}>
+                        {quoteListLike.items.map((item, itemIndex) => (
+                          <li key={`${block.id}-quote-ol-${itemIndex}`} className={styles.li}>
+                            {renderInline(item, `block-quote-ol-${index}-${itemIndex}`)}
+                          </li>
+                        ))}
+                      </ol>
+                    </blockquote>
+                  );
+                }
                 return (
                   <blockquote key={block.id} className={styles.quoteBlock}>
-                    {renderInline(block.text ?? "", `block-quote-${index}`)}
+                    {renderInline(quoteText, `block-quote-${index}`)}
                   </blockquote>
                 );
               }
@@ -334,6 +435,32 @@ export function ArticleContent({
                   </figure>
                 );
               }
+              if (block.type === "mindnote") {
+                return (
+                  <figure key={block.id} className={styles.imageBlockWrap}>
+                    <div className={styles.mindnoteBlock}>
+                      <p className={styles.mindnoteTitle}>思维导图</p>
+                      <p className={styles.mindnoteDesc}>
+                        该区块来自飞书 MindNote，当前以链接形式展示。
+                      </p>
+                      {block.mindnoteUrl ? (
+                        <a
+                          href={block.mindnoteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={styles.boardLink}
+                        >
+                          在飞书中打开 MindNote
+                        </a>
+                      ) : (
+                        <span className={styles.mindnoteToken}>
+                          token: {block.mindnoteToken ?? "-"}
+                        </span>
+                      )}
+                    </div>
+                  </figure>
+                );
+              }
               if (block.type === "table") {
                 const rows = block.rows ?? [];
                 const mergedRows = applyTableCellMergeToGrid(
@@ -351,7 +478,7 @@ export function ArticleContent({
                 const unifiedTableFontSizeRem = cellFontSizeRemByShare(minColumnShare);
                 const [header, ...body] = mergedRows;
                 return (
-                  <div key={block.id} className={styles.tableWrap}>
+                  <TableOverflowHint key={block.id}>
                     <table className={styles.table}>
                       {colCount > 0 ? (
                         <colgroup>
@@ -408,7 +535,7 @@ export function ArticleContent({
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </TableOverflowHint>
                 );
               }
               if (block.type === "grid") {
