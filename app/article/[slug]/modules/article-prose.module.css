@@ -16,13 +16,14 @@
 }
 
 .headingNumberPrefix {
-  display: inline-block;
+  display: inline;
   margin-right: 0.35em;
   font-variant-numeric: tabular-nums;
   color: #525252;
   font-weight: 600;
   letter-spacing: 0;
   user-select: none;
+  white-space: nowrap;
 }
 
 .headingSpacer {
@@ -38,7 +39,6 @@
   letter-spacing: -0.02em;
   font-family: var(--font-inter), "Noto Sans SC", ui-sans-serif, system-ui,
     -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  text-wrap: balance;
 }
 
 .heading2 {
@@ -50,7 +50,6 @@
   letter-spacing: -0.015em;
   font-family: var(--font-inter), "Noto Sans SC", ui-sans-serif, system-ui,
     -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  text-wrap: balance;
 }
 
 .heading3 {

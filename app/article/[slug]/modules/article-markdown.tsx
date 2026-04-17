@@ -16,6 +16,9 @@ import {
 import { ArticleLazyImage } from "./article-lazy-image";
 import styles from "./article-prose.module.css";
 
+/** 标题自动序号与正文之间：抑制在边界处断行（Unicode Word Joiner） */
+export const HEADING_NUMBER_TITLE_GLUE = "\u2060";
+
 export function isFeishuMediaProxyUrl(value: string): boolean {
   const v = value.trim();
   return /^\/api\/feishu-image\?token=.+/i.test(v);
@@ -502,6 +505,7 @@ export function renderBlock(
             {numPrefix ? (
               <span className={styles.headingNumberPrefix}>{numPrefix}</span>
             ) : null}
+            {numPrefix ? HEADING_NUMBER_TITLE_GLUE : null}
             {renderInline(block.text, `heading-${blockIndex}`)}
           </h2>
         </Fragment>

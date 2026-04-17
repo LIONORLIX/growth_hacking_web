@@ -17,6 +17,7 @@ import {
 } from "../article-heading-level-map";
 import {
   applyTableCellMergeToGrid,
+  HEADING_NUMBER_TITLE_GLUE,
   isFeishuMediaProxyUrl,
   parseContentSegments,
   parseListText,
@@ -170,6 +171,7 @@ export function ArticleContent({
                       {numPrefix ? (
                         <span className={styles.headingNumberPrefix}>{numPrefix}</span>
                       ) : null}
+                      {numPrefix ? HEADING_NUMBER_TITLE_GLUE : null}
                       {renderInline(block.text ?? "", `block-heading-${index}`)}
                     </h2>
                   </Fragment>
