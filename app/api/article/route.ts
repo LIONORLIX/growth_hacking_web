@@ -490,7 +490,7 @@ function buildBlockById(items: DocxBlock[]): Map<string, DocxBlock> {
 }
 
 function pickTableColumnWidthRatios(
-  tableProperty: DocxBlock["table"]["property"] | undefined,
+  tableProperty: NonNullable<DocxBlock["table"]>["property"] | undefined,
   colCount: number
 ): number[] | null {
   if (!tableProperty || colCount <= 0) return null;
