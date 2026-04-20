@@ -190,6 +190,7 @@ export function ArticleContent({
   const isPartial = article.partial === true;
   const isPresetDoc = article.documentId === PRESET_DOCUMENT_ID;
   const blockPayloads = article.blocks ?? [];
+  let imageCount = 0;
 
   const headingLevelMap = useMemo(() => {
     const raw =
@@ -396,6 +397,7 @@ export function ArticleContent({
                       src={block.imageUrl}
                       alt={block.caption || `article-image-${index}`}
                       className={isBoardSnapshot ? styles.boardImage : styles.image}
+                      priority={imageCount++ === 0}
                     />
                     {isBoardSnapshot && boardLink ? (
                       <p className={styles.boardLinkRow}>
@@ -567,6 +569,7 @@ export function ArticleContent({
                                   src={seg.value}
                                   alt={seg.alt || `grid-image-${colIdx}-${segIdx}`}
                                   className={styles.gridColumnImage}
+                                  priority={imageCount++ === 0}
                                 />
                                 {seg.alt?.trim() ? (
                                   <p className={styles.imageCaption}>{seg.alt.trim()}</p>

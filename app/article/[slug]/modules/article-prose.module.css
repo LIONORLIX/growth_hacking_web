@@ -32,7 +32,7 @@
 
 .heading1 {
   margin: 0 0 1.35rem;
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 5vw, 2rem);
   line-height: 1.28;
   font-weight: 640;
   color: #0f172a;
@@ -43,7 +43,7 @@
 
 .heading2 {
   margin: 0 0 1.05rem;
-  font-size: 1.62rem;
+  font-size: clamp(1.25rem, 4vw, 1.62rem);
   line-height: 1.33;
   font-weight: 620;
   color: #111827;
@@ -54,7 +54,7 @@
 
 .heading3 {
   margin: 0 0 0.85rem;
-  font-size: 1.28rem;
+  font-size: clamp(1.06rem, 3vw, 1.28rem);
   line-height: 1.42;
   font-weight: 610;
   color: #1f2937;
@@ -271,6 +271,12 @@
   margin: 0;
   border: 1px solid #e5e7eb;
   border-radius: 0.6rem;
+}
+
+@media (max-width: 640px) {
+  .boardImage {
+    height: min(72vw, 360px);
+  }
 }
 
 .boardLinkRow {
@@ -506,7 +512,7 @@
   overflow-wrap: normal;
   line-break: auto;
   text-wrap: pretty;
-  min-width: 140px;
+  min-width: 120px;
   max-width: 420px;
 }
 
@@ -521,8 +527,21 @@
   overflow-wrap: normal;
   line-break: auto;
   text-wrap: pretty;
-  min-width: 140px;
+  min-width: 120px;
   max-width: 420px;
+}
+
+@media (max-width: 640px) {
+  .th {
+    min-width: 100px;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.875rem;
+  }
+  .td {
+    min-width: 100px;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.875rem;
+  }
 }
 
 .td .gridColumnImage,

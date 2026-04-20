@@ -41,12 +41,13 @@ import { ArticlePageFooter } from "./modules/article-page-footer";
 import { ArticleBodyPreviewSkeleton } from "./modules/article-body-preview-skeleton";
 import { ArticleStreamFooter } from "./modules/article-stream-footer";
 import { ArticleErrorState } from "./modules/article-error-state";
+import { ErrorBoundary } from "@/app/components/error-boundary";
 
 const APP_TOKEN = "B4K3bAYKTau24es6Dxdcq3FEnig";
 const TABLE_ID = "tblHalmUkZ8AZSgp";
 const LINE_CAP_BEFORE_SEAL = 0.88;
 
-export default function ArticlePage() {
+function ArticlePage() {
   const [mounted, setMounted] = useState(false);
   const bgShader = "none";
   const params = useParams();
@@ -502,5 +503,13 @@ export default function ArticlePage() {
         <ArticlePageFooter />
       </div>
     </div>
+  );
+}
+
+export default function ArticlePageWithBoundary() {
+  return (
+    <ErrorBoundary>
+      <ArticlePage />
+    </ErrorBoundary>
   );
 }

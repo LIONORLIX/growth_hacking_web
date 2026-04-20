@@ -48,13 +48,17 @@ export async function feishuRequest<T = any>(
     cache: "no-store",
   };
 
-  console.log(`[Feishu Request] ${options.method || "GET"} ${url}`);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[Feishu Request] ${options.method || "GET"} ${url}`);
+  }
 
   const maxAttempts = 5;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const res = await fetchWithTimeout(url, finalOptions, timeout);
     const rawText = await res.text();
-    console.log(`[Feishu Response] Status: ${res.status}, Raw:`, rawText);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[Feishu Response] Status: ${res.status}, Raw:`, rawText);
+    }
 
     let data: FeishuResponse<T> | null = null;
     try {

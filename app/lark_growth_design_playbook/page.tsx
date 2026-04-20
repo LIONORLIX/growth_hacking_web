@@ -10,8 +10,6 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type Dispatch,
-  type SetStateAction,
 } from "react";
 
 import {
@@ -29,6 +27,7 @@ import { PlaybookSplashPaths } from "@/app/lark_growth_design_playbook/playbook-
 import { formatCoverMetaLine } from "@/lib/cover-meta-line";
 import { getPlaybookAppToken, getPlaybookTableId } from "@/lib/playbook-data-source";
 import { itemHasHeroHighlight, itemHasPublishedStatus } from "@/lib/playbook-status";
+import { ErrorBoundary } from "@/app/components/error-boundary";
 
 const PlaybookHeroShaderBackground = dynamic(() => import("./playbook-hero-shader-bg"), {
   ssr: false,
@@ -246,27 +245,13 @@ type PlaybookHeroSlidesCardChromeProps = {
   heroSlides: BaseRecord[];
   activeHeroSlide: number;
   stripEmojiFn: (value: string) => string;
-  setActiveHeroSlide: Dispatch<SetStateAction<number>>;
 };
 
 function PlaybookHeroSlidesCardChrome({
   heroSlides,
   activeHeroSlide,
   stripEmojiFn,
-  setActiveHeroSlide,
 }: PlaybookHeroSlidesCardChromeProps) {
-  const goHeroRing = useCallback(
-    (dir: -1 | 1) => {
-      setActiveHeroSlide((prev) => {
-        const n = heroSlides.length;
-        if (n < 2) return prev;
-        if (dir === 1) return prev >= n - 1 ? 0 : prev + 1;
-        return prev <= 0 ? n - 1 : prev - 1;
-      });
-    },
-    [heroSlides.length, setActiveHeroSlide],
-  );
-
   if (heroSlides.length === 0) return null;
 
   const currentSlide =
@@ -282,9 +267,7 @@ function PlaybookHeroSlidesCardChrome({
   return (
     <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col">
       <div
-        className="relative min-h-0 flex-1 cursor-pointer"
-        onClick={() => goHeroRing(1)}
-        title="点击切换下一篇"
+        className="relative min-h-0 flex-1"
       >
         <div
           className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center px-2 pb-14 pt-2 sm:px-3 sm:pb-16 sm:pt-4 lg:px-4"
@@ -325,117 +308,16 @@ function PlaybookHeroSlidesCardChrome({
 type PlaybookHeroSlidesFullscreenChromeProps = {
   heroSlides: BaseRecord[];
   activeHeroSlide: number;
-  heroSlidesKey: string;
   stripEmojiFn: (value: string) => string;
-  setActiveHeroSlide: Dispatch<SetStateAction<number>>;
   onEnterCardMode: () => void;
 };
 
 function PlaybookHeroSlidesFullscreenChrome({
   heroSlides,
   activeHeroSlide,
-  heroSlidesKey,
   stripEmojiFn,
-  setActiveHeroSlide,
   onEnterCardMode,
 }: PlaybookHeroSlidesFullscreenChromeProps) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const programmaticScrollRef = useRef(false);
-  const programmaticScrollClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scrollSettleRaf = useRef(0);
-
-  const lockProgrammaticScroll = useCallback((ms: number) => {
-    programmaticScrollRef.current = true;
-    if (programmaticScrollClearRef.current) {
-      clearTimeout(programmaticScrollClearRef.current);
-    }
-    programmaticScrollClearRef.current = setTimeout(() => {
-      programmaticScrollClearRef.current = null;
-      programmaticScrollRef.current = false;
-    }, ms);
-  }, []);
-
-  const applySlideFromScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el || heroSlides.length === 0) return;
-    const h = el.clientHeight;
-    if (h < 8) return;
-    const i = Math.round(el.scrollTop / h);
-    const clamped = Math.max(0, Math.min(heroSlides.length - 1, i));
-    setActiveHeroSlide((prev) => (prev === clamped ? prev : clamped));
-  }, [heroSlides.length, setActiveHeroSlide]);
-
-  const onScrollAreaScroll = useCallback(() => {
-    if (programmaticScrollRef.current) return;
-    cancelAnimationFrame(scrollSettleRaf.current);
-    scrollSettleRaf.current = requestAnimationFrame(applySlideFromScroll);
-  }, [applySlideFromScroll]);
-
-  const goHeroRing = useCallback(
-    (dir: -1 | 1) => {
-      setActiveHeroSlide((prev) => {
-        const n = heroSlides.length;
-        if (n < 2) return prev;
-        if (dir === 1) return prev >= n - 1 ? 0 : prev + 1;
-        return prev <= 0 ? n - 1 : prev - 1;
-      });
-    },
-    [heroSlides.length, setActiveHeroSlide],
-  );
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || heroSlides.length === 0) return;
-    const h = el.clientHeight;
-    if (h < 8) return;
-    const target = activeHeroSlide * h;
-    if (Math.abs(el.scrollTop - target) < 4) {
-      return;
-    }
-    lockProgrammaticScroll(72);
-    el.scrollTop = target;
-    return () => {
-      if (programmaticScrollClearRef.current) {
-        clearTimeout(programmaticScrollClearRef.current);
-        programmaticScrollClearRef.current = null;
-      }
-      programmaticScrollRef.current = false;
-    };
-  }, [activeHeroSlide, heroSlides.length, heroSlidesKey, lockProgrammaticScroll]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => {
-      if (programmaticScrollRef.current) return;
-      lockProgrammaticScroll(72);
-      const h = el.clientHeight;
-      if (h > 0) {
-        el.scrollTop = activeHeroSlide * h;
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [activeHeroSlide, heroSlides.length, lockProgrammaticScroll]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScrollEnd = () => {
-      if (programmaticScrollRef.current) return;
-      applySlideFromScroll();
-    };
-    el.addEventListener("scrollend", onScrollEnd);
-    return () => el.removeEventListener("scrollend", onScrollEnd);
-  }, [applySlideFromScroll]);
-
-  useEffect(() => {
-    return () => {
-      cancelAnimationFrame(scrollSettleRaf.current);
-      if (programmaticScrollClearRef.current) clearTimeout(programmaticScrollClearRef.current);
-    };
-  }, []);
-
   if (heroSlides.length === 0) return null;
 
   const currentSlide =
@@ -486,23 +368,6 @@ function PlaybookHeroSlidesFullscreenChrome({
 
       <div className="relative min-h-0 flex-1">
         <div
-          ref={scrollRef}
-          onScroll={onScrollAreaScroll}
-          className="h-full snap-y snap-mandatory overflow-y-auto overscroll-y-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          style={{
-            scrollPaddingBottom: "calc(5.5rem + env(safe-area-inset-bottom, 0px))",
-          }}
-        >
-          {heroSlides.map((item) => (
-            <div
-              key={item.record_id}
-              className="min-h-full shrink-0 snap-start"
-              aria-hidden
-            />
-          ))}
-        </div>
-
-        <div
           className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center px-6 pb-20 pt-10 sm:px-8 sm:pb-24 sm:pt-14 lg:px-12 lg:pr-16"
           aria-live="polite"
         >
@@ -533,85 +398,6 @@ function PlaybookHeroSlidesFullscreenChrome({
               </span>
             </Link>
           </div>
-        </div>
-
-        <nav
-          aria-label="篇目切换"
-          className="pointer-events-none absolute inset-y-0 right-3 z-30 flex items-center sm:right-5 lg:right-8"
-        >
-          <ol className="pointer-events-auto flex flex-col items-center gap-2.5 py-8">
-            {heroSlides.map((item, i) => {
-              const on = i === activeHeroSlide;
-              return (
-                <li key={item.record_id}>
-                  <button
-                    type="button"
-                    aria-label={`第 ${i + 1} 篇`}
-                    aria-current={on ? "true" : undefined}
-                    onClick={() => setActiveHeroSlide(i)}
-                    className={`block rounded-full transition-[height,width,background-color] duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] motion-reduce:transition-none ${
-                      on
-                        ? "h-7 w-[5px] border border-white/35 bg-white"
-                        : "h-2 w-2 bg-white/40 hover:bg-white/65"
-                    }`}
-                  />
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
-
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-4 z-40 flex flex-row items-center justify-center gap-3 sm:bottom-5"
-          role="group"
-          aria-label="切换篇目"
-        >
-          <button
-            type="button"
-            aria-label="上一篇，在第一篇时回到最后一篇"
-            onClick={() => goHeroRing(-1)}
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/90 bg-transparent text-white transition-colors duration-200 ease-out hover:border-white hover:bg-white/[0.06] motion-reduce:transition-none"
-          >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              className="shrink-0"
-              aria-hidden
-            >
-              <path
-                d="M7 14.5L12 9.5l5 5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            aria-label="下一篇，在最后一篇时回到第一篇"
-            onClick={() => goHeroRing(1)}
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/90 bg-transparent text-white transition-colors duration-200 ease-out hover:border-white hover:bg-white/[0.06] motion-reduce:transition-none"
-          >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              className="shrink-0"
-              aria-hidden
-            >
-              <path
-                d="M7 9.5L12 14.5l5-5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
         </div>
       </div>
     </div>
@@ -672,7 +458,7 @@ function PlaybookHeroEmptyFullscreenChrome({ onToggleLayout }: { onToggleLayout:
 
 const LINE_CAP_BEFORE_SEAL = 0.88;
 
-export default function PlaybookPage() {
+function PlaybookPage() {
   const [data, setData] = useState<BaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1188,7 +974,7 @@ export default function PlaybookPage() {
                     <button
                       type="button"
                       onClick={toggleHeroLayout}
-                      className="relative z-[1] ml-auto inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-stone-900/30 bg-white text-stone-900 transition-[background-color,border-color,opacity] duration-200 ease-out hover:border-stone-900/45 hover:bg-stone-100"
+                      className="relative z-[1] ml-auto inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-stone-900/30 bg-white text-stone-900 transition-[background-color,border-color,opacity] duration-200 ease-out hover:border-stone-900/45 hover:bg-stone-100"
                       aria-label="展开全屏"
                     >
                       <PlaybookCardFullscreenIcon className="size-[1.125rem]" />
@@ -1253,9 +1039,7 @@ export default function PlaybookPage() {
                           <PlaybookHeroSlidesFullscreenChrome
                             heroSlides={heroSlides}
                             activeHeroSlide={activeHeroSlide}
-                            heroSlidesKey={heroSlidesKey}
                             stripEmojiFn={stripEmoji}
-                            setActiveHeroSlide={setActiveHeroSlide}
                             onEnterCardMode={() => beginHeroSnap(1)}
                           />
                         </div>
@@ -1309,7 +1093,6 @@ export default function PlaybookPage() {
                         heroSlides={heroSlides}
                         activeHeroSlide={activeHeroSlide}
                         stripEmojiFn={stripEmoji}
-                        setActiveHeroSlide={setActiveHeroSlide}
                       />
                     </div>
                   </div>
@@ -1341,7 +1124,9 @@ export default function PlaybookPage() {
               >
                 <div
                   ref={filterBarRef}
-                  className="sticky z-50 -mx-6 bg-white px-6 py-0 sm:-mx-8 sm:px-8 sm:py-0 lg:mx-0 lg:px-0"
+                  className={`sticky z-50 -mx-6 bg-white px-6 py-0 transition-shadow sm:-mx-8 sm:px-8 sm:py-0 lg:mx-0 lg:px-0 ${
+                    isFilterSticky ? "shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : ""
+                  }`}
                   style={{ top: 0 }}
                 >
                   <div className="relative">
@@ -1350,7 +1135,7 @@ export default function PlaybookPage() {
                         <div className="flex items-center gap-5">
                           <button
                             onClick={() => setSelectedCategory(null)}
-                            className={`-mb-px border-b-2 pb-2.5 transition-colors ${
+                            className={`-mb-px min-h-[44px] border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
                               !selectedCategory
                                 ? "border-stone-900 font-semibold text-stone-900"
                                 : "border-transparent text-stone-500 hover:text-stone-900"
@@ -1362,7 +1147,7 @@ export default function PlaybookPage() {
                             <button
                               key={category}
                               onClick={() => setSelectedCategory(category)}
-                              className={`-mb-px border-b-2 pb-2.5 transition-colors ${
+                              className={`-mb-px min-h-[44px] border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
                                 selectedCategory === category
                                   ? "border-stone-900 font-semibold text-stone-900"
                                   : "border-transparent text-stone-500 hover:text-stone-900"
@@ -1377,7 +1162,7 @@ export default function PlaybookPage() {
                           <span className="text-xs uppercase tracking-wide text-stone-400">Region</span>
                           <button
                             onClick={() => setSelectedRegion(null)}
-                            className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                            className={`rounded-full px-3 py-2 text-xs transition-colors ${
                               !selectedRegion
                                 ? "bg-stone-100 text-stone-700"
                                 : "text-stone-400 hover:text-stone-700"
@@ -1389,7 +1174,7 @@ export default function PlaybookPage() {
                             <button
                               key={region}
                               onClick={() => setSelectedRegion(region)}
-                              className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                              className={`rounded-full px-3 py-2 text-xs transition-colors ${
                                 selectedRegion === region
                                   ? "bg-stone-100 text-stone-700"
                                   : "text-stone-400 hover:text-stone-700"
@@ -1507,5 +1292,13 @@ export default function PlaybookPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function PlaybookPageWithBoundary() {
+  return (
+    <ErrorBoundary>
+      <PlaybookPage />
+    </ErrorBoundary>
   );
 }

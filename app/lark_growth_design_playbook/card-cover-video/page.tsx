@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ErrorBoundary } from "@/app/components/error-boundary";
 import { getPlaybookAppToken, getPlaybookTableId } from "@/lib/playbook-data-source";
 import { itemHasPublishedStatus } from "@/lib/playbook-status";
 import {
@@ -79,7 +80,7 @@ function randomSeedToken(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export default function CardCoverVideoPage() {
+function CardCoverVideoPage() {
   const hostRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<MountedP5 | null>(null);
 
@@ -166,7 +167,7 @@ export default function CardCoverVideoPage() {
     mountRef.current?.remove();
     mountRef.current = null;
     host.innerHTML = "";
-    void (async () => {
+    (async () => {
       const { mountPlaybookHeightmapP5 } = await import(
         "@/app/lark_growth_design_playbook/playbook-heightmap-p5-mount"
       );
@@ -180,7 +181,11 @@ export default function CardCoverVideoPage() {
       });
       activeMount = m;
       mountRef.current = m;
-    })();
+    })().catch((e) => {
+      if (!disposed) {
+        console.error("[CardCoverVideo] Shader mount failed:", e);
+      }
+    });
     return () => {
       disposed = true;
       activeMount?.remove();
@@ -403,7 +408,7 @@ export default function CardCoverVideoPage() {
                 <button
                   type="button"
                   disabled={recording || batchRunning || !selected}
-                  onClick={() => void onRecordOne()}
+                  onClick={() => { onRecordOne().catch((e) => appendLog(String(e))); }}
                   className="rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-medium text-white transition-opacity disabled:opacity-40"
                 >
                   {recording ? "录制中…" : "录制当前并下载"}
@@ -419,7 +424,7 @@ export default function CardCoverVideoPage() {
                 <button
                   type="button"
                   disabled={!effectiveSeed}
-                  onClick={() => void onCopySeed()}
+                  onClick={() => { onCopySeed().catch((e) => appendLog(String(e))); }}
                   className="rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-800 transition-opacity disabled:opacity-40"
                 >
                   复制 Seed
@@ -427,7 +432,7 @@ export default function CardCoverVideoPage() {
                 <button
                   type="button"
                   disabled={recording || batchRunning || !data.items.length}
-                  onClick={() => void onBatch()}
+                  onClick={() => { onBatch().catch((e) => appendLog(String(e))); }}
                   className="rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-800 transition-opacity disabled:opacity-40"
                 >
                   {batchRunning ? "批量进行中…" : "按表顺序全部导出"}
@@ -463,7 +468,7 @@ export default function CardCoverVideoPage() {
 
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <h2 className="text-sm font-semibold text-stone-800">输出</h2>
-                <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="mt-3 grid grid-cols-1 gap-3 xs:grid-cols-2">
                   <label className="text-xs text-stone-600">
                     宽 px
                     <input
@@ -537,5 +542,13 @@ export default function CardCoverVideoPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function CardCoverVideoPageWithBoundary() {
+  return (
+    <ErrorBoundary>
+      <CardCoverVideoPage />
+    </ErrorBoundary>
   );
 }

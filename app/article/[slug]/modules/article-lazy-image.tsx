@@ -1,9 +1,6 @@
 "use client";
 
-/**
- * 懒加载图片：进入视口后再请求，加载前显示骨架；点击已加载图打开灯箱。
- */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArticleImageLightbox } from "./article-image-lightbox";
 import lazyStyles from "./article-lazy-image.module.css";
 
@@ -11,38 +8,72 @@ export function ArticleLazyImage({
   src,
   alt,
   className,
+  priority = false,
 }: {
   src?: string;
   alt: string;
   className: string;
+  priority?: boolean;
 }) {
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(priority);
   const [isLoaded, setIsLoaded] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const linkRef = useRef<HTMLLinkElement | null>(null);
+
+  const handleIntersection = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const entry = entries[0];
+      if (entry?.isIntersecting) {
+        setIsVisible(true);
+        if (observerRef.current) {
+          observerRef.current.disconnect();
+          observerRef.current = null;
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
+    if (priority) return;
+    if (!src) return;
+
+    linkRef.current = document.createElement("link");
+    linkRef.current.rel = "preconnect";
+    linkRef.current.href = new URL(src, window.location.origin).origin;
+    document.head.appendChild(linkRef.current);
+  }, [src, priority]);
+
+  useEffect(() => {
+    if (priority) return;
     if (!wrapRef.current) return;
     if (!src) return;
+
     if (typeof IntersectionObserver === "undefined") {
-      setIsVisible(true);
       return;
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry?.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "240px 0px" }
-    );
+    const observer = new IntersectionObserver(handleIntersection, {
+      rootMargin: "480px 0px",
+    });
 
+    observerRef.current = observer;
     observer.observe(wrapRef.current);
-    return () => observer.disconnect();
-  }, [src]);
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
+  }, [src, priority, handleIntersection]);
+
+  useEffect(() => {
+    return () => {
+      if (linkRef.current) {
+        document.head.removeChild(linkRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div ref={wrapRef} className={lazyStyles.lazyImageWrap}>
@@ -54,8 +85,10 @@ export function ArticleLazyImage({
           className={`${className} ${lazyStyles.lazyImage} ${
             isLoaded ? lazyStyles.lazyImageLoaded : ""
           }`}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
           referrerPolicy="no-referrer"
+          decoding="async"
+          fetchPriority={priority ? "high" : "low"}
           onLoad={() => setIsLoaded(true)}
           onClick={() => isLoaded && setLightbox(true)}
           style={{ cursor: isLoaded ? "zoom-in" : undefined }}

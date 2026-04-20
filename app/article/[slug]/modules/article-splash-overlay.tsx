@@ -23,7 +23,7 @@ export function ArticleSplashOverlay({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[200] flex min-h-0 min-w-0 flex-col bg-white"
+      className="fixed inset-0 z-[200] flex min-h-0 min-w-0 flex-col bg-white pt-safe"
       aria-busy
       aria-live="polite"
       aria-valuemin={0}

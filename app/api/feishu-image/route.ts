@@ -1,11 +1,25 @@
 import { getTenantAccessToken } from "@/lib/feishu/auth";
 
-const IMAGE_CACHE_TTL_MS = 10 * 60 * 1000;
+const IMAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const FEISHU_RATE_LIMIT_CODE = 99991400;
 const imageCache = new Map<
   string,
   { expiresAt: number; contentType: string; body: ArrayBuffer }
 >();
+
+const pendingRequests = new Map<
+  string,
+  Promise<{ contentType: string; body: ArrayBuffer } | null>
+>();
+
+function simpleHash(buffer: ArrayBuffer): string {
+  const view = new Uint8Array(buffer);
+  let hash = 0;
+  for (let i = 0; i < Math.min(view.length, 4096); i += 1) {
+    hash = ((hash << 5) - hash + view[i]!) | 0;
+  }
+  return `"${hash.toString(36)}-${buffer.byteLength}"`;
+}
 
 function parseRangeHeader(rangeHeader: string, size: number): { start: number; end: number } | null {
   const m = rangeHeader.match(/^bytes=(\d*)-(\d*)$/i);
@@ -15,7 +29,6 @@ function parseRangeHeader(rangeHeader: string, size: number): { start: number; e
 
   if (!startRaw && !endRaw) return null;
 
-  // bytes=-N: 最后 N 字节
   if (!startRaw && endRaw) {
     const suffixLen = Number(endRaw);
     if (!Number.isFinite(suffixLen) || suffixLen <= 0) return null;
@@ -30,11 +43,113 @@ function parseRangeHeader(rangeHeader: string, size: number): { start: number; e
   return { start, end: Math.min(end, size - 1) };
 }
 
+async function fetchImageFromFeishu(
+  token: string
+): Promise<{ contentType: string; body: ArrayBuffer } | null> {
+  const tenantToken = await getTenantAccessToken();
+  const maxAttempts = 4;
+  let lastStatus = 500;
+  let lastErrText = "Unknown error";
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const upstream = await fetch(
+      `https://open.feishu.cn/open-apis/drive/v1/medias/${encodeURIComponent(
+        token
+      )}/download`,
+      {
+        headers: {
+          Authorization: `Bearer ${tenantToken}`,
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (upstream.ok) {
+      const arrayBuffer = await upstream.arrayBuffer();
+      const contentType = upstream.headers.get("content-type") ?? "application/octet-stream";
+      return { contentType, body: arrayBuffer };
+    }
+
+    const errText = await upstream.text();
+    lastStatus = upstream.status;
+    lastErrText = errText;
+    const isRateLimited =
+      upstream.status === 429 ||
+      errText.includes("request trigger frequency limit") ||
+      errText.includes(String(FEISHU_RATE_LIMIT_CODE));
+
+    if (!isRateLimited || attempt === maxAttempts) {
+      break;
+    }
+
+    const waitMs = Math.min(1200, 180 * 2 ** (attempt - 1));
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+
+  console.error(
+    `[Feishu Image] fetch failed for token ${token}: ${lastStatus} ${lastErrText}`
+  );
+  return null;
+}
+
+function sendCachedResponse(
+  body: ArrayBuffer,
+  contentType: string,
+  rangeHeader: string | null
+): Response {
+  const totalSize = body.byteLength;
+  const bodyView = new Uint8Array(body);
+  const etag = simpleHash(body);
+  const commonHeaders: Record<string, string> = {
+    "Content-Type": contentType,
+    "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
+    "Accept-Ranges": "bytes",
+    ETag: etag,
+  };
+
+  if (rangeHeader) {
+    const range = parseRangeHeader(rangeHeader, totalSize);
+    if (!range) {
+      return new Response(null, {
+        status: 416,
+        headers: {
+          ...commonHeaders,
+          "Content-Range": `bytes */${totalSize}`,
+        },
+      });
+    }
+    const chunk = bodyView.slice(range.start, range.end + 1);
+    return new Response(chunk, {
+      status: 206,
+      headers: {
+        ...commonHeaders,
+        "Content-Range": `bytes ${range.start}-${range.end}/${totalSize}`,
+        "Content-Length": String(chunk.byteLength),
+      },
+    });
+  }
+  return new Response(body, {
+    status: 200,
+    headers: { ...commonHeaders, "Content-Length": String(totalSize) },
+  });
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
     const rangeHeader = request.headers.get("range");
+    const ifNoneMatch = request.headers.get("if-none-match");
+
+    if (process.env.NODE_ENV === "production") {
+      const referer = request.headers.get("referer") || "";
+      const origin = request.headers.get("origin") || "";
+      const host = request.headers.get("host") || "";
+      const isSameOrigin = origin.includes(host) || referer.includes(host);
+      if (!isSameOrigin) {
+        return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     if (!token) {
       return Response.json({ ok: false, error: "Missing image token" }, { status: 400 });
@@ -42,132 +157,72 @@ export async function GET(request: Request) {
 
     const cached = imageCache.get(token);
     if (cached && cached.expiresAt > Date.now()) {
-      const totalSize = cached.body.byteLength;
-      const cachedView = new Uint8Array(cached.body);
-      const commonHeaders: Record<string, string> = {
-        "Content-Type": cached.contentType,
-        "Cache-Control": "private, max-age=600",
-        "Accept-Ranges": "bytes",
-      };
-      if (rangeHeader) {
-        const range = parseRangeHeader(rangeHeader, totalSize);
-        if (!range) {
+      if (ifNoneMatch) {
+        const etag = simpleHash(cached.body);
+        if (ifNoneMatch === etag) {
           return new Response(null, {
-            status: 416,
+            status: 304,
             headers: {
-              ...commonHeaders,
-              "Content-Range": `bytes */${totalSize}`,
+              "Cache-Control": "public, max-age=3600, s-maxage=86400",
+              ETag: etag,
             },
           });
         }
-        const chunk = cachedView.slice(range.start, range.end + 1);
-        return new Response(chunk, {
-          status: 206,
-          headers: {
-            ...commonHeaders,
-            "Content-Range": `bytes ${range.start}-${range.end}/${totalSize}`,
-            "Content-Length": String(chunk.byteLength),
-          },
-        });
       }
-      return new Response(cached.body, {
-        status: 200,
-        headers: { ...commonHeaders, "Content-Length": String(totalSize) },
-      });
+      return sendCachedResponse(cached.body, cached.contentType, rangeHeader);
     }
 
-    const tenantToken = await getTenantAccessToken();
-    const maxAttempts = 4;
-    let arrayBuffer: ArrayBuffer | null = null;
-    let contentType = "application/octet-stream";
-    let lastStatus = 500;
-    let lastErrText = "Unknown error";
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      const upstream = await fetch(
-        `https://open.feishu.cn/open-apis/drive/v1/medias/${encodeURIComponent(
-          token
-        )}/download`,
-        {
-          headers: {
-            Authorization: `Bearer ${tenantToken}`,
-          },
-          cache: "no-store",
+    const pending = pendingRequests.get(token);
+    if (pending) {
+      const result = await pending;
+      if (!result) {
+        return Response.json(
+          { ok: false, error: "Feishu image fetch failed" },
+          { status: 502 }
+        );
+      }
+      if (ifNoneMatch) {
+        const etag = simpleHash(result.body);
+        if (ifNoneMatch === etag) {
+          return new Response(null, { status: 304, headers: { ETag: etag } });
         }
-      );
-
-      if (upstream.ok) {
-        arrayBuffer = await upstream.arrayBuffer();
-        contentType = upstream.headers.get("content-type") ?? "application/octet-stream";
-        break;
       }
-
-      const errText = await upstream.text();
-      lastStatus = upstream.status;
-      lastErrText = errText;
-      const isRateLimited =
-        upstream.status === 429 ||
-        errText.includes("request trigger frequency limit") ||
-        errText.includes(String(FEISHU_RATE_LIMIT_CODE));
-
-      if (!isRateLimited || attempt === maxAttempts) {
-        break;
-      }
-
-      const waitMs = Math.min(1200, 180 * 2 ** (attempt - 1));
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      return sendCachedResponse(result.body, result.contentType, rangeHeader);
     }
 
-    if (!arrayBuffer) {
-      return Response.json(
-        { ok: false, error: `Feishu image fetch failed: ${lastStatus} ${lastErrText}` },
-        { status: lastStatus }
-      );
-    }
+    const fetchPromise = fetchImageFromFeishu(token);
+    pendingRequests.set(token, fetchPromise);
 
-    const body = arrayBuffer;
-    imageCache.set(token, {
-      expiresAt: Date.now() + IMAGE_CACHE_TTL_MS,
-      contentType,
-      body,
-    });
-
-    const totalSize = body.byteLength;
-    const bodyView = new Uint8Array(body);
-    const commonHeaders: Record<string, string> = {
-      "Content-Type": contentType,
-      "Cache-Control": "private, max-age=600",
-      "Accept-Ranges": "bytes",
-    };
-    if (rangeHeader) {
-      const range = parseRangeHeader(rangeHeader, totalSize);
-      if (!range) {
-        return new Response(null, {
-          status: 416,
-          headers: {
-            ...commonHeaders,
-            "Content-Range": `bytes */${totalSize}`,
-          },
-        });
+    try {
+      const result = await fetchPromise;
+      if (!result) {
+        return Response.json(
+          { ok: false, error: "Feishu image fetch failed" },
+          { status: 502 }
+        );
       }
-      const chunk = bodyView.slice(range.start, range.end + 1);
-      return new Response(chunk, {
-        status: 206,
-        headers: {
-          ...commonHeaders,
-          "Content-Range": `bytes ${range.start}-${range.end}/${totalSize}`,
-          "Content-Length": String(chunk.byteLength),
-        },
+
+      imageCache.set(token, {
+        expiresAt: Date.now() + IMAGE_CACHE_TTL_MS,
+        contentType: result.contentType,
+        body: result.body,
       });
+
+      if (ifNoneMatch) {
+        const etag = simpleHash(result.body);
+        if (ifNoneMatch === etag) {
+          return new Response(null, { status: 304, headers: { ETag: etag } });
+        }
+      }
+      return sendCachedResponse(result.body, result.contentType, rangeHeader);
+    } finally {
+      pendingRequests.delete(token);
     }
-    return new Response(body, {
-      status: 200,
-      headers: {
-        ...commonHeaders,
-        "Content-Length": String(totalSize),
-      },
-    });
   } catch (error) {
-    return Response.json({ ok: false, error: String(error) }, { status: 500 });
+    console.error("[Feishu Image Route Error]", error);
+    return Response.json(
+      { ok: false, error: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
   }
 }

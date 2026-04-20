@@ -11,6 +11,16 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
 
+    if (process.env.NODE_ENV === "production") {
+      const referer = request.headers.get("referer") || "";
+      const origin = request.headers.get("origin") || "";
+      const host = request.headers.get("host") || "";
+      const isSameOrigin = origin.includes(host) || referer.includes(host);
+      if (!isSameOrigin) {
+        return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
+      }
+    }
+
     if (!token) {
       return Response.json(
         { ok: false, error: "Missing board token" },

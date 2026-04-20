@@ -54,16 +54,16 @@ export function ArticleHeroCover({
   return (
     <div className="-mx-4 mb-6 overflow-hidden border-b border-gray-100 sm:-mx-6 lg:-mx-8">
       <div
-        className={`fixed inset-x-0 top-0 z-[65] transition-[opacity,transform] duration-200 ${
+        className={`fixed inset-x-0 top-0 z-[65] pt-safe transition-[opacity,transform] duration-200 ${
           stickyVisible
             ? "pointer-events-none -translate-y-2 opacity-0"
             : "translate-y-0 opacity-100"
         }`}
       >
-        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between py-4">
+        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <Link
             href="/lark_growth_design_playbook"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/90 text-gray-700 backdrop-blur transition hover:bg-white"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/70 bg-white/90 text-gray-700 backdrop-blur transition hover:bg-white"
           >
             <svg
               aria-hidden="true"
@@ -86,7 +86,7 @@ export function ArticleHeroCover({
               rel="noreferrer"
               aria-label="打开原始飞书文档"
               title="打开原始飞书文档"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/70 bg-white/90 text-gray-700 backdrop-blur transition hover:bg-white"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-white/70 bg-white/90 text-gray-700 backdrop-blur transition hover:bg-white"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -104,7 +104,7 @@ export function ArticleHeroCover({
               </svg>
             </a>
           ) : (
-            <span className="inline-block h-8 w-8 animate-pulse rounded-md bg-white/70" />
+            <span className="inline-block h-11 w-11 animate-pulse rounded-md bg-white/70" />
           )}
         </div>
       </div>
@@ -118,7 +118,7 @@ export function ArticleHeroCover({
         />
         <div
           ref={titleSentinelRef}
-          className="relative z-10 mx-auto max-w-[1024px] px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-45"
+          className="relative z-10 mx-auto max-w-[1024px] px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-32"
         >
           {!article ? (
             <div className="mb-4 flex items-center justify-center gap-2">
@@ -138,7 +138,7 @@ export function ArticleHeroCover({
             </p>
           ) : null}
 
-          <h1 className="text-4xl font-extrabold tracking-tight text-white lg:text-[2.75rem] lg:leading-[1.15]">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
             {!article ? (
               <span className="mx-auto block h-10 w-2/3 animate-pulse rounded bg-white/25" />
             ) : articleSubtitle?.trim() ? (
