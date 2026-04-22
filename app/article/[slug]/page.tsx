@@ -10,7 +10,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type TransitionEvent,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import type { ArticleApiData, TocItem } from "./article-types";
@@ -45,7 +44,6 @@ import { ErrorBoundary } from "@/app/components/error-boundary";
 
 const APP_TOKEN = "B4K3bAYKTau24es6Dxdcq3FEnig";
 const TABLE_ID = "tblHalmUkZ8AZSgp";
-const LINE_CAP_BEFORE_SEAL = 0.88;
 
 function ArticlePage() {
   const [mounted, setMounted] = useState(false);
@@ -62,15 +60,7 @@ function ArticlePage() {
   const [streamComplete, setStreamComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [splashVisible, setSplashVisible] = useState(true);
-  const [lineRatio, setLineRatio] = useState(0);
   const [isFetching, setIsFetching] = useState(true);
-  const [sealPhase, setSealPhase] = useState(false);
-  const sealingRef = useRef(false);
-  const splashDismissedRef = useRef(false);
-  const splashCurveRef = useRef<SVGPathElement | null>(null);
-  const splashHLineRef = useRef<SVGLineElement | null>(null);
-  const splashVLineRef = useRef<SVGLineElement | null>(null);
-  const [splashStrokeLens, setSplashStrokeLens] = useState<[number, number, number]>([0, 0, 0]);
   const [article, setArticle] = useState<ArticleApiData | null>(null);
   const [articleThemeHex, setArticleThemeHex] = useState<string | null>(null);
   const [articleThemeAccentHexes, setArticleThemeAccentHexes] = useState<string[]>([]);
@@ -171,73 +161,14 @@ function ArticlePage() {
   }, []);
 
   const dismissSplash = useCallback(() => {
-    if (splashDismissedRef.current) return;
-    splashDismissedRef.current = true;
-    sealingRef.current = false;
     setSplashVisible(false);
   }, []);
 
   useEffect(() => {
-    if (!isFetching || !splashVisible) return;
-    let raf = 0;
-    const tick = () => {
-      setLineRatio((p) => {
-        if (p >= LINE_CAP_BEFORE_SEAL) return p;
-        const room = LINE_CAP_BEFORE_SEAL - p;
-        return p + Math.max(0.00035, room * 0.028);
-      });
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [isFetching, splashVisible]);
-
-  useEffect(() => {
-    if (!splashVisible) return;
-    const measure = () => {
-      const c = splashCurveRef.current?.getTotalLength() ?? 0;
-      const h = splashHLineRef.current?.getTotalLength() ?? 0;
-      const v = splashVLineRef.current?.getTotalLength() ?? 0;
-      if (c > 0 && h > 0 && v > 0) {
-        setSplashStrokeLens([c, h, v]);
-      }
-    };
-    const id = requestAnimationFrame(measure);
-    window.addEventListener("resize", measure);
-    return () => {
-      cancelAnimationFrame(id);
-      window.removeEventListener("resize", measure);
-    };
-  }, [splashVisible]);
-
-  const onSplashProgressTransitionEnd = (e: TransitionEvent<SVGGeometryElement>) => {
-    if (!sealingRef.current) return;
-    if (e.propertyName !== "stroke-dashoffset") return;
-    dismissSplash();
-  };
-
-  useEffect(() => {
-    if (!sealPhase || lineRatio < 1 || !splashVisible) return;
-    const t = window.setTimeout(() => {
-      if (sealingRef.current) dismissSplash();
-    }, 1150);
-    return () => window.clearTimeout(t);
-  }, [dismissSplash, lineRatio, sealPhase, splashVisible]);
-
-  useEffect(() => {
     if (!splashVisible || isFetching) return;
-    if (lineRatio >= 1) {
-      dismissSplash();
-      return;
-    }
-    sealingRef.current = true;
-    setSealPhase(true);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setLineRatio(1);
-      });
-    });
-  }, [dismissSplash, isFetching, lineRatio, splashVisible]);
+    const t = window.setTimeout(() => dismissSplash(), 600);
+    return () => window.clearTimeout(t);
+  }, [dismissSplash, isFetching, splashVisible]);
 
   useEffect(() => {
     if (!titleSentinelRef.current) return;
@@ -285,11 +216,7 @@ function ArticlePage() {
     let cancelled = false;
 
     const loadArticle = async () => {
-      splashDismissedRef.current = false;
       setSplashVisible(true);
-      setLineRatio(0);
-      setSealPhase(false);
-      sealingRef.current = false;
       setIsFetching(true);
       setLoading(true);
       setStreamComplete(false);
@@ -445,15 +372,7 @@ function ArticlePage() {
   return (
     <div className="relative min-h-screen bg-white pb-16">
       {splashVisible ? (
-        <ArticleSplashOverlay
-          splashCurveRef={splashCurveRef}
-          splashHLineRef={splashHLineRef}
-          splashVLineRef={splashVLineRef}
-          splashStrokeLens={splashStrokeLens}
-          lineRatio={lineRatio}
-          sealPhase={sealPhase}
-          onStrokeTransitionEnd={onSplashProgressTransitionEnd}
-        />
+        <ArticleSplashOverlay />
       ) : null}
       <div
         className="pointer-events-none fixed inset-0 -z-10"
@@ -489,7 +408,7 @@ function ArticlePage() {
         <div className="relative mt-24 lg:pl-[240px] lg:pr-4">
           <ArticleTocAside tocItems={tocItems} activeTocId={activeTocId} />
 
-          <article className="mx-auto max-w-[920px]">
+          <article className="mx-auto max-w-[720px]">
             {loading && !article && <ArticleBodyPreviewSkeleton />}
 
             {article && (

@@ -11,6 +11,7 @@ import {
   playbookSlugFromFields,
   themeHexesFromFields,
 } from "@/lib/hero-parametric-gradient";
+import { heightmapRampFrag, heightmapRampVert } from "../heightmap-ramp-shaders";
 
 type BaseRecord = {
   record_id: string;
@@ -78,6 +79,19 @@ function randomSeedToken(): string {
     return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   }
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content.trimStart()], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function CardCoverVideoPage() {
@@ -368,6 +382,15 @@ function CardCoverVideoPage() {
     }
   };
 
+  const onExportShaders = useCallback(() => {
+    const base = selected ? safeFileSlug(selected) : "playbook-heightmap";
+    downloadTextFile(`${base}-heightmap-ramp.vert`, heightmapRampVert);
+    window.setTimeout(() => {
+      downloadTextFile(`${base}-heightmap-ramp.frag`, heightmapRampFrag);
+    }, 200);
+    appendLog(`已导出 shader：${base}-heightmap-ramp.vert / .frag`);
+  }, [appendLog, selected]);
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -436,6 +459,13 @@ function CardCoverVideoPage() {
                   className="rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-800 transition-opacity disabled:opacity-40"
                 >
                   {batchRunning ? "批量进行中…" : "按表顺序全部导出"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onExportShaders}
+                  className="rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-800 transition-opacity"
+                >
+                  导出 Shader（.vert + .frag）
                 </button>
               </div>
 

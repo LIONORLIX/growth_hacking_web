@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -16,14 +15,9 @@ import {
   heroGradientSeedForRecord,
   themeHexesFromFields,
 } from "@/lib/hero-parametric-gradient";
-import {
-  bgStaticAttachmentUrlFromFields,
-  coverAttachmentUrlFromFields,
-  motionAttachmentSourcesFromFields,
-  PlaybookCardCoverMedia,
-} from "@/app/lark_growth_design_playbook/playbook-card-cover-media";
+
 import { PlaybookFullscreenPathTracers } from "@/app/lark_growth_design_playbook/playbook-fullscreen-path-tracers";
-import { PlaybookSplashPaths } from "@/app/lark_growth_design_playbook/playbook-splash-paths";
+
 import { formatCoverMetaLine } from "@/lib/cover-meta-line";
 import { getPlaybookAppToken, getPlaybookTableId } from "@/lib/playbook-data-source";
 import { itemHasHeroHighlight, itemHasPublishedStatus } from "@/lib/playbook-status";
@@ -288,7 +282,7 @@ function PlaybookHeroSlidesCardChrome({
                 {renderTextWithBreaks(headlineSecondary)}
               </p>
             ) : null}
-            <h1 className="mx-auto max-w-[960px] text-balance text-2xl font-semibold leading-[1.1] tracking-tight text-white sm:text-3xl md:text-4xl lg:text-5xl">
+            <h1 className="mx-auto max-w-[960px] text-balance text-xl font-semibold leading-[1.1] tracking-tight text-white sm:text-2xl md:text-3xl lg:text-4xl">
               {renderTextWithBreaks(headlinePrimary)}
             </h1>
             <Link
@@ -456,21 +450,111 @@ function PlaybookHeroEmptyFullscreenChrome({ onToggleLayout }: { onToggleLayout:
   );
 }
 
-const LINE_CAP_BEFORE_SEAL = 0.88;
+function PlaybookCardCover({
+  seed,
+  themeBaseHex,
+  themeAccentHexes,
+  reduceMotion,
+  hovered,
+}: {
+  seed: string;
+  themeBaseHex: string | null;
+  themeAccentHexes: string[];
+  reduceMotion: boolean;
+  hovered: boolean;
+}) {
+  return (
+    <PlaybookHeroShaderBackground
+      seed={seed}
+      themeBaseHex={themeBaseHex}
+      themeAccentHexes={themeAccentHexes}
+      variant="card"
+      motionPaused={reduceMotion || !hovered}
+      viewportGate
+    />
+  );
+}
+
+function PlaybookCardItem({
+  item,
+  index,
+  selectedCategory,
+  selectedRegion,
+  reduceHeroShaderMotion,
+  stripEmoji,
+}: {
+  item: BaseRecord;
+  index: number;
+  selectedCategory: string | null;
+  selectedRegion: string | null;
+  reduceHeroShaderMotion: boolean;
+  stripEmoji: (text: string) => string;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const cardTitle = stripBrTags(
+    playbookFieldString(item.fields, "Title", "title")
+  );
+  const cardSubtitle = stripBrTags(
+    playbookFieldString(item.fields, "Subtitle", "subtitle")
+  );
+  const cardMainHeadline = cardTitle || cardSubtitle || "Untitled";
+  const showSubtitleBelow = Boolean(cardTitle && cardSubtitle);
+  const cardMeta = formatCoverMetaLine(
+    item.fields as Record<string, unknown>,
+    stripEmoji
+  );
+  const cardSeed = heroGradientSeedForRecord(item);
+  const cardThemeHexes = themeHexesFromFields(item.fields as Record<string, unknown>);
+  return (
+    <Link
+      key={`${item.record_id}-${selectedCategory ?? "c"}-${selectedRegion ?? "r"}`}
+      href={`/article/${item.fields.Slug || item.record_id}?rid=${encodeURIComponent(item.record_id)}`}
+      className="playbook-card-enter group flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
+      style={{
+        animationDelay: `${Math.min(index, 24) * 64}ms`,
+      }}
+    >
+      <div
+        className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <PlaybookCardCover
+          seed={cardSeed}
+          themeBaseHex={cardThemeHexes[0] ?? null}
+          themeAccentHexes={cardThemeHexes.slice(1)}
+          reduceMotion={reduceHeroShaderMotion}
+          hovered={hovered}
+        />
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 px-2 text-center sm:gap-2 sm:px-3">
+          {cardMeta ? (
+            <p className="line-clamp-2 text-center text-[0.625rem] font-medium uppercase leading-tight tracking-wide text-white/75 sm:text-[0.6875rem]">
+              {cardMeta}
+            </p>
+          ) : null}
+          <h2 className="line-clamp-4 text-balance text-xs font-semibold leading-snug tracking-tight text-white sm:text-sm md:text-base">
+            {cardMainHeadline}
+          </h2>
+        </div>
+      </div>
+
+      {showSubtitleBelow ? (
+        <div className="px-2 pb-2 pt-3 text-left sm:px-1 sm:pb-2">
+          <p className="line-clamp-2 text-xs font-semibold leading-snug tracking-tight text-stone-700 sm:text-[0.9rem]">
+            {cardSubtitle}
+          </p>
+        </div>
+      ) : null}
+    </Link>
+  );
+}
 
 function PlaybookPage() {
   const [data, setData] = useState<BaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  /** 首屏白底遮罩：请求结束后先拉满线再关 */
   const [splashVisible, setSplashVisible] = useState(true);
-  /** 0–1，与接口无关的爬行；收到响应后设为 1 并等 transitionend 再关遮罩 */
-  const [lineRatio, setLineRatio] = useState(0);
   const [isFetching, setIsFetching] = useState(true);
-  /** 为 true 时进度条才有 transform transition（收尾拉满）；爬行阶段为 false 避免每 tick 都动画 */
-  const [sealPhase, setSealPhase] = useState(false);
-  const sealingRef = useRef(false);
-  const splashDismissedRef = useRef(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [isFilterSticky, setIsFilterSticky] = useState(false);
@@ -493,11 +577,7 @@ function PlaybookPage() {
   const heroMotionReduceRef = useRef(false);
   /** WebGL 背景在 prefers-reduced-motion 时关闭，仅保留 CSS 渐变 */
   const [reduceHeroShaderMotion, setReduceHeroShaderMotion] = useState(false);
-  const splashCurveRef = useRef<SVGPathElement | null>(null);
-  const splashHLineRef = useRef<SVGLineElement | null>(null);
-  const splashVLineRef = useRef<SVGLineElement | null>(null);
-  /** 与 `public/playbook-load-paths.svg` 三条线一一对应：曲线、水平线、竖线 */
-  const [splashStrokeLens, setSplashStrokeLens] = useState<[number, number, number]>([0, 0, 0]);
+
   const heroAnimRef = useRef<HeroSnapAnim>({
     active: false,
     startTime: 0,
@@ -549,21 +629,14 @@ function PlaybookPage() {
   }, [beginHeroSnap]);
 
   const dismissSplash = useCallback(() => {
-    if (splashDismissedRef.current) return;
-    splashDismissedRef.current = true;
-    sealingRef.current = false;
     setSplashVisible(false);
     setLoading(false);
   }, []);
 
   const fetchData = async () => {
-    splashDismissedRef.current = false;
     setLoading(true);
     setSplashVisible(true);
-    setLineRatio(0);
-    setSealPhase(false);
     setIsFetching(true);
-    sealingRef.current = false;
     setError(null);
 
     try {
@@ -588,74 +661,11 @@ function PlaybookPage() {
       setError(String(err));
     } finally {
       setIsFetching(false);
-      const reduceMotion =
-        typeof window !== "undefined" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduceMotion) {
-        setLineRatio(1);
+      setTimeout(() => {
         dismissSplash();
-      } else {
-        sealingRef.current = true;
-        setSealPhase(true);
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setLineRatio(1);
-          });
-        });
-      }
+      }, 600);
     }
   };
-
-  /** 请求进行中：每帧微增 lineRatio，三条 stroke 同步延伸 */
-  useEffect(() => {
-    if (!isFetching || !splashVisible) return;
-    let raf = 0;
-    const tick = () => {
-      setLineRatio((p) => {
-        if (p >= LINE_CAP_BEFORE_SEAL) return p;
-        const room = LINE_CAP_BEFORE_SEAL - p;
-        return p + Math.max(0.00035, room * 0.028);
-      });
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [isFetching, splashVisible]);
-
-  useLayoutEffect(() => {
-    if (!splashVisible) return;
-    const measure = () => {
-      const c = splashCurveRef.current?.getTotalLength() ?? 0;
-      const h = splashHLineRef.current?.getTotalLength() ?? 0;
-      const v = splashVLineRef.current?.getTotalLength() ?? 0;
-      if (c > 0 && h > 0 && v > 0) {
-        setSplashStrokeLens([c, h, v]);
-      }
-    };
-    const id = requestAnimationFrame(measure);
-    window.addEventListener("resize", measure);
-    return () => {
-      cancelAnimationFrame(id);
-      window.removeEventListener("resize", measure);
-    };
-  }, [splashVisible, viewportSize.w, viewportSize.h]);
-
-  const onSplashProgressTransitionEnd = (
-    e: React.TransitionEvent<SVGGeometryElement>,
-  ) => {
-    if (!sealingRef.current) return;
-    if (e.propertyName !== "stroke-dashoffset") return;
-    dismissSplash();
-  };
-
-  /** transitionend 偶发不触发时的兜底 */
-  useEffect(() => {
-    if (!sealPhase || lineRatio < 1 || !splashVisible) return;
-    const t = window.setTimeout(() => {
-      if (sealingRef.current) dismissSplash();
-    }, 1150);
-    return () => window.clearTimeout(t);
-  }, [sealPhase, lineRatio, splashVisible, dismissSplash]);
 
   useEffect(() => {
     fetchData();
@@ -859,71 +869,21 @@ function PlaybookPage() {
     >
       {splashVisible ? (
         <div
-          className="fixed inset-0 z-[200] flex min-h-0 min-w-0 flex-col bg-white"
-          style={{ paddingTop: `${heroLayout.top}px` }}
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white"
           aria-busy
           aria-live="polite"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(lineRatio * 100)}
         >
           <span className="sr-only">加载中</span>
-          {/* 三线铺满视口（含顶栏背后），Logo 叠在上层 */}
-          <div className="pointer-events-none absolute inset-0 z-0 flex min-h-0 min-w-0 flex-col">
-            <PlaybookSplashPaths
-              curveRef={splashCurveRef}
-              hLineRef={splashHLineRef}
-              vLineRef={splashVLineRef}
-              lengths={splashStrokeLens}
-              measured={
-                splashStrokeLens[0] > 0 &&
-                splashStrokeLens[1] > 0 &&
-                splashStrokeLens[2] > 0
-              }
-              lineRatio={lineRatio}
-              sealPhase={sealPhase}
-              onStrokeTransitionEnd={onSplashProgressTransitionEnd}
+          <div className="flex flex-col items-center gap-8">
+            <Image
+              src="/Lark%20Design.svg"
+              alt="Lark Design"
+              width={186}
+              height={38}
+              className="h-9 w-auto brightness-0"
+              priority
             />
-          </div>
-          {/* 与全屏 Hero 顶栏同一 max-w-7xl + 栅格 + 中右占位，Logo 位置与加载后一致；白底用纯黑 Logo */}
-          <div className="relative z-[210] mx-auto w-full max-w-7xl shrink-0 bg-transparent">
-            <div
-              role="navigation"
-              aria-label="Playbook"
-              className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-6 pb-3 pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pt-10"
-            >
-              <div className="flex min-w-0 justify-start">
-                <Link
-                  href="/lark_growth_design_playbook"
-                  className="flex shrink-0 items-center outline-offset-4"
-                >
-                  <Image
-                    src="/Lark%20Design.svg"
-                    alt="Lark Design"
-                    width={186}
-                    height={38}
-                    className="h-9 w-auto brightness-0"
-                    priority
-                  />
-                </Link>
-              </div>
-              <p
-                aria-hidden
-                className="pointer-events-none invisible max-w-[min(52vw,20rem)] truncate px-2 text-center text-xs font-semibold uppercase tracking-wide text-white/95 sm:max-w-[min(40vw,28rem)] sm:text-sm md:max-w-none md:overflow-visible md:whitespace-normal md:text-clip"
-              >
-                Lark Growth Design Playbook
-              </p>
-              <div className="flex min-w-0 justify-end">
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  aria-hidden
-                  className="invisible pointer-events-none shrink-0 rounded-full border border-white/90 bg-transparent px-3.5 py-1.5 text-xs font-medium text-white sm:px-4 sm:py-2 sm:text-sm"
-                >
-                  查看全部
-                </button>
-              </div>
-            </div>
+            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-stone-200 border-t-stone-900" />
           </div>
         </div>
       ) : null}
@@ -952,21 +912,21 @@ function PlaybookPage() {
                   aria-label="Playbook"
                   className="relative z-30 mt-6 mb-3 flex w-full min-w-0 items-center px-1 py-2 text-stone-900 sm:mb-4 sm:py-2.5"
                 >
-                  {showCardTopDebugControls ? (
-                    <Link
-                      href="/lark_growth_design_playbook"
-                      className="relative z-[1] flex shrink-0 items-center text-stone-900 outline-offset-4"
-                    >
-                      <Image
-                        src="/Lark%20Design.svg"
-                        alt="Lark Design"
-                        width={186}
-                        height={38}
-                        className="h-7 w-auto brightness-0"
-                        priority
-                      />
-                    </Link>
-                  ) : null}
+                  <a
+                    href="https://larksuite.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="relative z-[1] flex shrink-0 items-center text-stone-900 outline-offset-4"
+                  >
+                    <Image
+                      src="/Lark%20Design.svg"
+                      alt="Lark"
+                      width={186}
+                      height={38}
+                      className="h-7 w-auto brightness-0"
+                      priority
+                    />
+                  </a>
                   <p className="pointer-events-none absolute left-1/2 top-1/2 z-0 max-w-[min(100%-7rem,calc(100vw-8rem))] -translate-x-1/2 -translate-y-1/2 px-2 text-center text-[11px] font-semibold uppercase leading-snug tracking-wide text-stone-900 sm:max-w-[min(100%-9rem,44rem)] sm:text-xs md:text-sm">
                     Lark Growth Design Playbook
                   </p>
@@ -1214,59 +1174,17 @@ function PlaybookPage() {
                           key={cardGridRevealEpoch}
                           className="grid grid-cols-1 gap-6 pt-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-6"
                         >
-                          {visibleItems.map((item, i) => {
-                            const cardTitle = stripBrTags(
-                              playbookFieldString(item.fields, "Title", "title")
-                            );
-                            const cardSubtitle = stripBrTags(
-                              playbookFieldString(item.fields, "Subtitle", "subtitle")
-                            );
-                            const cardMainHeadline = cardTitle || cardSubtitle || "Untitled";
-                            const showSubtitleBelow = Boolean(cardTitle && cardSubtitle);
-                            const cardMeta = formatCoverMetaLine(
-                              item.fields as Record<string, unknown>,
-                              stripEmoji
-                            );
-                            return (
-                              <Link
-                                key={`${item.record_id}-${selectedCategory ?? "c"}-${selectedRegion ?? "r"}`}
-                                href={`/article/${item.fields.Slug || item.record_id}?rid=${encodeURIComponent(item.record_id)}`}
-                                className="playbook-card-enter group flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
-                                style={{
-                                  animationDelay: `${Math.min(i, 24) * 64}ms`,
-                                }}
-                              >
-                                <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]">
-                                  <PlaybookCardCoverMedia
-                                    coverUrl={coverAttachmentUrlFromFields(item.fields)}
-                                    motionSources={motionAttachmentSourcesFromFields(item.fields)}
-                                    staticBgUrl={bgStaticAttachmentUrlFromFields(item.fields)}
-                                    seed={heroGradientSeedForRecord(item)}
-                                    reduceMotion={reduceHeroShaderMotion}
-                                    recordId={item.record_id}
-                                  />
-                                  <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 px-2 text-center sm:gap-2 sm:px-3">
-                                    {cardMeta ? (
-                                      <p className="line-clamp-2 text-center text-[0.625rem] font-medium uppercase leading-tight tracking-wide text-white/75 sm:text-[0.6875rem]">
-                                        {cardMeta}
-                                      </p>
-                                    ) : null}
-                                    <h2 className="line-clamp-4 text-balance text-xs font-semibold leading-snug tracking-tight text-white sm:text-sm md:text-base">
-                                      {cardMainHeadline}
-                                    </h2>
-                                  </div>
-                                </div>
-
-                                {showSubtitleBelow ? (
-                                  <div className="px-2 pb-2 pt-3 text-left sm:px-1 sm:pb-2">
-                                    <p className="line-clamp-2 text-xs font-semibold leading-snug tracking-tight text-stone-700 sm:text-[0.9rem]">
-                                      {cardSubtitle}
-                                    </p>
-                                  </div>
-                                ) : null}
-                              </Link>
-                            );
-                          })}
+                          {visibleItems.map((item, i) => (
+                            <PlaybookCardItem
+                              key={`${item.record_id}-${selectedCategory ?? "c"}-${selectedRegion ?? "r"}`}
+                              item={item}
+                              index={i}
+                              selectedCategory={selectedCategory}
+                              selectedRegion={selectedRegion}
+                              reduceHeroShaderMotion={reduceHeroShaderMotion}
+                              stripEmoji={stripEmoji}
+                            />
+                          ))}
                         </div>
                       </div>
                     )}

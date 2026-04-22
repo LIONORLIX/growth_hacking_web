@@ -273,7 +273,9 @@ export function renderRichCellContent(
           playsInline
           preload="metadata"
           className={styles.gridColumnImage}
-        />
+        >
+          <p>您的浏览器不支持视频播放。</p>
+        </video>
       );
       continue;
     }
@@ -621,8 +623,6 @@ export function parseListText(
 
 export type RenderBlockOptions = {
   headingLevelMap?: Map<number, number>;
-  /** 展示层级 1、2 时的自动序号（如 "1." / "1.2"），由上游按块下标传入 */
-  headingNumberPrefix?: string;
 };
 
 export function renderBlock(
@@ -632,7 +632,6 @@ export function renderBlock(
 ): ReactNode {
   const { blockIndex } = ctx;
   const headingMap = opts?.headingLevelMap ?? new Map<number, number>();
-  const numPrefix = opts?.headingNumberPrefix;
   switch (block.type) {
     case "heading": {
       const headingId = buildHeadingId(block.text, blockIndex);
@@ -644,10 +643,6 @@ export function renderBlock(
             id={headingId}
             className={classNameForHeadingDisplayLevel(display, styles)}
           >
-            {numPrefix ? (
-              <span className={styles.headingNumberPrefix}>{numPrefix}</span>
-            ) : null}
-            {numPrefix ? HEADING_NUMBER_TITLE_GLUE : null}
             {renderInline(block.text, `heading-${blockIndex}`)}
           </h2>
         </Fragment>

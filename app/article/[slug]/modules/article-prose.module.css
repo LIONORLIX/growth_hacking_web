@@ -31,10 +31,10 @@
 }
 
 .heading1 {
-  margin: 0 0 1.35rem;
-  font-size: clamp(1.5rem, 5vw, 2rem);
-  line-height: 1.28;
-  font-weight: 640;
+  margin: 0 0 1.5rem;
+  font-size: 1.75rem;
+  line-height: 1.32;
+  font-weight: 700;
   color: #0f172a;
   letter-spacing: -0.02em;
   font-family: var(--font-inter), "Noto Sans SC", ui-sans-serif, system-ui,
@@ -42,10 +42,10 @@
 }
 
 .heading2 {
-  margin: 0 0 1.05rem;
-  font-size: clamp(1.25rem, 4vw, 1.62rem);
-  line-height: 1.33;
-  font-weight: 620;
+  margin: 0 0 1.1rem;
+  font-size: 1.38rem;
+  line-height: 1.36;
+  font-weight: 660;
   color: #111827;
   letter-spacing: -0.015em;
   font-family: var(--font-inter), "Noto Sans SC", ui-sans-serif, system-ui,
@@ -54,16 +54,16 @@
 
 .heading3 {
   margin: 0 0 0.85rem;
-  font-size: clamp(1.06rem, 3vw, 1.28rem);
-  line-height: 1.42;
-  font-weight: 610;
-  color: #1f2937;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  font-weight: 630;
+  color: #1e293b;
   letter-spacing: -0.01em;
 }
 
 .heading4 {
   margin: 0 0 0.65rem;
-  font-size: 1.06rem;
+  font-size: 1.03rem;
   line-height: 1.5;
   font-weight: 600;
   color: #334155;
@@ -71,15 +71,15 @@
 
 .heading5 {
   margin: 0 0 0.6rem;
-  font-size: 0.96rem;
+  font-size: 0.94rem;
   line-height: 1.56;
-  font-weight: 600;
+  font-weight: 590;
   color: #475569;
 }
 
 .heading6 {
   margin: 0 0 0.55rem;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   line-height: 1.58;
   font-weight: 580;
   color: #64748b;
@@ -88,10 +88,10 @@
 .paragraph {
   margin: 1.35rem 0;
   white-space: pre-wrap;
-  line-height: 1.9;
-  color: #1f2937;
-  font-size: 1.01rem;
-  text-align: justify;
+  line-height: 1.92;
+  color: #292524;
+  font-size: 1.03rem;
+  text-align: start;
   word-break: normal;
   word-break: auto-phrase;
   text-wrap: pretty;
@@ -101,10 +101,10 @@
 .textBlock {
   margin: 1.28rem 0;
   white-space: pre-wrap;
-  line-height: 1.88;
-  color: #334155;
-  font-size: 1rem;
-  text-align: justify;
+  line-height: 1.9;
+  color: #374151;
+  font-size: 1.01rem;
+  text-align: start;
   word-break: normal;
   word-break: auto-phrase;
   text-wrap: pretty;
@@ -264,10 +264,10 @@
 .boardImage {
   display: block;
   width: 100%;
-  height: min(56vw, 560px);
-  max-height: 560px;
-  object-fit: cover;
-  object-position: top center;
+  height: auto;
+  max-height: 640px;
+  object-fit: contain;
+  object-position: center;
   margin: 0;
   border: 1px solid #e5e7eb;
   border-radius: 0.6rem;
@@ -366,6 +366,16 @@
     "Courier New", monospace;
   font-size: 0.78rem;
   color: #64748b;
+}
+
+.mindnoteImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.6rem;
+  object-fit: contain;
 }
 
 .tableCellGridColumns {

@@ -17,7 +17,6 @@ import {
 } from "../article-heading-level-map";
 import {
   applyTableCellMergeToGrid,
-  HEADING_NUMBER_TITLE_GLUE,
   isFeishuMediaProxyUrl,
   parseContentSegments,
   parseListText,
@@ -254,7 +253,6 @@ export function ArticleContent({
                 const rawLv = rawHeadingLevelFromApiBlock(block);
                 const displayLv = displayHeadingLevel(rawLv, headingLevelMap);
                 const cls = classNameForHeadingDisplayLevel(displayLv, styles);
-                const numPrefix = headingNumberByBlockIndex.get(index);
                 return (
                   <Fragment key={block.id}>
                     {index > 0 ? <div className={styles.headingSpacer} aria-hidden="true" /> : null}
@@ -262,10 +260,6 @@ export function ArticleContent({
                       id={buildHeadingId(block.text ?? "", index)}
                       className={cls}
                     >
-                      {numPrefix ? (
-                        <span className={styles.headingNumberPrefix}>{numPrefix}</span>
-                      ) : null}
-                      {numPrefix ? HEADING_NUMBER_TITLE_GLUE : null}
                       {renderInline(block.text ?? "", `block-heading-${index}`)}
                     </h2>
                   </Fragment>
@@ -428,7 +422,9 @@ export function ArticleContent({
                       playsInline
                       preload="metadata"
                       className={styles.image}
-                    />
+                    >
+                      <p>您的浏览器不支持视频播放。</p>
+                    </video>
                     {block.caption ? (
                       <figcaption className={styles.imageCaption}>
                         {block.caption}
@@ -440,26 +436,35 @@ export function ArticleContent({
               if (block.type === "mindnote") {
                 return (
                   <figure key={block.id} className={styles.imageBlockWrap}>
-                    <div className={styles.mindnoteBlock}>
-                      <p className={styles.mindnoteTitle}>思维导图</p>
-                      <p className={styles.mindnoteDesc}>
-                        该区块来自飞书 MindNote，当前以链接形式展示。
-                      </p>
-                      {block.mindnoteUrl ? (
+                    {block.mindnoteImageUrl ? (
+                      <ArticleLazyImage
+                        src={block.mindnoteImageUrl}
+                        alt={block.caption || `mindnote-${index}`}
+                        className={styles.mindnoteImage}
+                      />
+                    ) : (
+                      <div className={styles.mindnoteBlock}>
+                        <p className={styles.mindnoteTitle}>思维导图</p>
+                        <p className={styles.mindnoteDesc}>
+                          该区块来自飞书 MindNote，当前以链接形式展示。
+                        </p>
+                        <span className={styles.mindnoteToken}>
+                          token: {block.mindnoteToken ?? "-"}
+                        </span>
+                      </div>
+                    )}
+                    {block.mindnoteUrl ? (
+                      <p className={styles.boardLinkRow}>
                         <a
                           href={block.mindnoteUrl}
                           target="_blank"
                           rel="noreferrer"
                           className={styles.boardLink}
                         >
-                          在飞书中打开 MindNote
+                          在飞书中打开完整 MindNote
                         </a>
-                      ) : (
-                        <span className={styles.mindnoteToken}>
-                          token: {block.mindnoteToken ?? "-"}
-                        </span>
-                      )}
-                    </div>
+                      </p>
+                    ) : null}
                   </figure>
                 );
               }
@@ -583,7 +588,9 @@ export function ArticleContent({
                                 playsInline
                                 preload="metadata"
                                 className={styles.gridColumnImage}
-                              />
+                              >
+                                <p>您的浏览器不支持视频播放。</p>
+                              </video>
                             ) : seg.value.trim() ? (
                               isFeishuMediaProxyUrl(seg.value) ? (
                                 <video
@@ -593,7 +600,9 @@ export function ArticleContent({
                                   playsInline
                                   preload="metadata"
                                   className={styles.gridColumnImage}
-                                />
+                                >
+                                  <p>您的浏览器不支持视频播放。</p>
+                                </video>
                               ) : (
                                 <p
                                   key={`${block.id}-col-${colIdx}-text-${segIdx}`}
@@ -632,11 +641,7 @@ export function ArticleContent({
               );
             })
           : blocks.map((block, blockIndex) =>
-              renderBlock(block, { blockIndex }, {
-                headingLevelMap,
-                headingNumberPrefix:
-                  headingNumberByBlockIndex.get(blockIndex) ?? undefined,
-              })
+              renderBlock(block, { blockIndex }, { headingLevelMap })
             )}
       </div>
       {!!article.imageUrls?.length && (

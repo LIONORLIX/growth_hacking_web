@@ -36,6 +36,14 @@ body {
     sans-serif;
 }
 
+html {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
 /* Playbook：进度条用内联 transform + transition，此处仅保留整页渐显 */
 
 /* 加载完成后整页渐显（仅 opacity） */

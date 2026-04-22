@@ -43,6 +43,7 @@ export type ArticleApiData = {
     caption?: string;
     mindnoteToken?: string;
     mindnoteUrl?: string;
+    mindnoteImageUrl?: string;
     columns?: string[];
     /** 与 columns 同序，飞书分栏 width_ratio，用于 grid-template-columns */
     columnWidthRatios?: number[];

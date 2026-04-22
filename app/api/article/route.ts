@@ -186,6 +186,7 @@ type ArticleBlockPayload = {
   tableColumnWidthRatios?: number[];
   mindnoteToken?: string;
   mindnoteUrl?: string;
+  mindnoteImageUrl?: string;
   raw?: unknown;
 };
 
@@ -348,6 +349,9 @@ function normalizeDocxBlock(block: DocxBlock): ArticleBlockPayload {
       type: "mindnote",
       mindnoteToken: block.mindnote.token,
       mindnoteUrl: `https://bytedance.larkoffice.com/mindnote/${encodeURIComponent(
+        block.mindnote.token
+      )}`,
+      mindnoteImageUrl: `/api/feishu-mindnote-image?token=${encodeURIComponent(
         block.mindnote.token
       )}`,
       caption: "MindNote",

@@ -459,7 +459,8 @@ export function PlaybookCardCoverMedia({
           playsInline
           autoPlay={autoplayWithoutCover}
           loop
-          preload="auto"
+          preload="metadata"
+          poster={coverUrl || undefined}
           aria-hidden
           onLoadedData={onVideoLoaded}
           onCanPlay={onVideoLoaded}
