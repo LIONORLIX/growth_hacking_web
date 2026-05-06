@@ -1,6 +1,8 @@
 import { getTenantAccessToken } from "@/lib/feishu/auth";
 import sharp from "sharp";
 
+export const runtime = "nodejs";
+
 const IMAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const FEISHU_RATE_LIMIT_CODE = 99991400;
 const imageCache = new Map<
