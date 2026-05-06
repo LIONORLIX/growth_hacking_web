@@ -163,11 +163,13 @@ async function transformImage(params: {
 
   if (params.format === "avif") {
     const out = await pipeline.avif({ quality: params.quality }).toBuffer();
-    return { contentType: "image/avif", body: out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) };
+    const slice = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength);
+    return { contentType: "image/avif", body: slice as ArrayBuffer };
   }
 
   const out = await pipeline.webp({ quality: params.quality }).toBuffer();
-  return { contentType: "image/webp", body: out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) };
+  const slice = out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength);
+  return { contentType: "image/webp", body: slice as ArrayBuffer };
 }
 
 export async function GET(request: Request) {
@@ -180,7 +182,7 @@ export async function GET(request: Request) {
     const quality = clampInt(searchParams.get("q"), 40, 90) ?? 72;
     const shouldTransform = Boolean(width || searchParams.get("q"));
     const format = pickOutputFormat(request.headers.get("accept"));
-    const cacheKey = shouldTransform ? `${token}|w=${width ?? ""}|q=${quality}|f=${format}` : token;
+    const cacheKey = shouldTransform ? `${token}|w=${width ?? ""}|q=${quality}|f=${format}` : token ?? "";
 
     if (process.env.NODE_ENV === "production") {
       const referer = request.headers.get("referer") || "";
