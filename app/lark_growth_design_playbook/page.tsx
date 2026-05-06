@@ -6,10 +6,13 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
+import { getCachedPlaybookBase, setCachedPlaybookBase } from "@/lib/client/playbook-cache";
 
 import {
   heroGradientSeedForRecord,
@@ -491,6 +494,7 @@ function PlaybookCardItem({
   stripEmoji: (text: string) => string;
 }) {
   const [hovered, setHovered] = useState(false);
+  const router = useRouter();
   const cardTitle = stripBrTags(
     playbookFieldString(item.fields, "Title", "title")
   );
@@ -505,10 +509,17 @@ function PlaybookCardItem({
   );
   const cardSeed = heroGradientSeedForRecord(item);
   const cardThemeHexes = themeHexesFromFields(item.fields as Record<string, unknown>);
+  const href = useMemo(
+    () =>
+      `/article/${item.fields.Slug || item.record_id}?rid=${encodeURIComponent(
+        item.record_id
+      )}`,
+    [item.fields.Slug, item.record_id]
+  );
   return (
     <Link
       key={`${item.record_id}-${selectedCategory ?? "c"}-${selectedRegion ?? "r"}`}
-      href={`/article/${item.fields.Slug || item.record_id}?rid=${encodeURIComponent(item.record_id)}`}
+      href={href}
       className="playbook-card-enter group flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
       style={{
         animationDelay: `${Math.min(index, 24) * 64}ms`,
@@ -516,7 +527,10 @@ function PlaybookCardItem({
     >
       <div
         className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
-        onMouseEnter={() => setHovered(true)}
+        onMouseEnter={() => {
+          setHovered(true);
+          router.prefetch(href);
+        }}
         onMouseLeave={() => setHovered(false)}
       >
         <PlaybookCardCover
@@ -648,12 +662,14 @@ function PlaybookPage() {
       if (result.ok) {
         const source = result.data as BaseData;
         const publishedItems = (source.items ?? []).filter(itemHasPublishedStatus);
-        setData({
+        const nextData = {
           ...source,
           items: publishedItems,
           total: publishedItems.length,
           has_more: false,
-        });
+        };
+        setData(nextData);
+        setCachedPlaybookBase("default", nextData);
       } else {
         setError(result.error);
       }
@@ -668,6 +684,37 @@ function PlaybookPage() {
   };
 
   useEffect(() => {
+    const cached = getCachedPlaybookBase("default") as BaseData | null;
+    if (cached?.items?.length) {
+      setData(cached);
+      setIsFetching(false);
+      setSplashVisible(false);
+      setLoading(false);
+      // 后台静默刷新，避免返回首页的 loading
+      void (async () => {
+        try {
+          const response = await fetch(
+            `/api/test-feishu?action=base&appToken=${APP_TOKEN}&tableId=${TABLE_ID}`
+          );
+          const result = await response.json();
+          if (result.ok) {
+            const source = result.data as BaseData;
+            const publishedItems = (source.items ?? []).filter(itemHasPublishedStatus);
+            const nextData = {
+              ...source,
+              items: publishedItems,
+              total: publishedItems.length,
+              has_more: false,
+            };
+            setCachedPlaybookBase("default", nextData);
+            setData(nextData);
+          }
+        } catch {
+          // ignore
+        }
+      })();
+      return;
+    }
     fetchData();
   }, []);
 

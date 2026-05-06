@@ -824,7 +824,16 @@ export async function GET(request: Request) {
     const cacheKey = `${ARTICLE_CACHE_SCHEMA_VERSION}|${documentId}|${effectiveRecordId}`;
     const cached = articleCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
-      return Response.json({ ok: true, data: cached.data });
+      return Response.json(
+        { ok: true, data: cached.data },
+        {
+          headers: {
+            "Cache-Control": debug
+              ? "no-store"
+              : "public, max-age=60, s-maxage=600, stale-while-revalidate=86400",
+          },
+        }
+      );
     }
 
     const [blocksData, metaData] = await Promise.all([
@@ -865,7 +874,16 @@ export async function GET(request: Request) {
       data,
     });
 
-    return Response.json({ ok: true, data });
+    return Response.json(
+      { ok: true, data },
+      {
+        headers: {
+          "Cache-Control": debug
+            ? "no-store"
+            : "public, max-age=60, s-maxage=600, stale-while-revalidate=86400",
+        },
+      }
+    );
   } catch (error) {
     return Response.json(
       { ok: false, error: String(error) },

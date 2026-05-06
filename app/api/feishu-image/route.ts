@@ -1,4 +1,5 @@
 import { getTenantAccessToken } from "@/lib/feishu/auth";
+import sharp from "sharp";
 
 const IMAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const FEISHU_RATE_LIMIT_CODE = 99991400;
@@ -134,12 +135,52 @@ function sendCachedResponse(
   });
 }
 
+function clampInt(value: string | null, min: number, max: number): number | null {
+  if (!value) return null;
+  const n = Number.parseInt(value, 10);
+  if (!Number.isFinite(n)) return null;
+  return Math.min(max, Math.max(min, n));
+}
+
+function pickOutputFormat(acceptHeader: string | null): "avif" | "webp" {
+  const accept = (acceptHeader ?? "").toLowerCase();
+  if (accept.includes("image/avif")) return "avif";
+  return "webp";
+}
+
+async function transformImage(params: {
+  body: ArrayBuffer;
+  width: number | null;
+  quality: number;
+  format: "avif" | "webp";
+}): Promise<{ contentType: string; body: ArrayBuffer }> {
+  const input = Buffer.from(params.body);
+  let pipeline = sharp(input, { failOnError: false, limitInputPixels: false });
+
+  if (params.width) {
+    pipeline = pipeline.resize({ width: params.width, withoutEnlargement: true });
+  }
+
+  if (params.format === "avif") {
+    const out = await pipeline.avif({ quality: params.quality }).toBuffer();
+    return { contentType: "image/avif", body: out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) };
+  }
+
+  const out = await pipeline.webp({ quality: params.quality }).toBuffer();
+  return { contentType: "image/webp", body: out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) };
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
     const rangeHeader = request.headers.get("range");
     const ifNoneMatch = request.headers.get("if-none-match");
+    const width = clampInt(searchParams.get("w"), 320, 2400);
+    const quality = clampInt(searchParams.get("q"), 40, 90) ?? 72;
+    const shouldTransform = Boolean(width || searchParams.get("q"));
+    const format = pickOutputFormat(request.headers.get("accept"));
+    const cacheKey = shouldTransform ? `${token}|w=${width ?? ""}|q=${quality}|f=${format}` : token;
 
     if (process.env.NODE_ENV === "production") {
       const referer = request.headers.get("referer") || "";
@@ -155,7 +196,7 @@ export async function GET(request: Request) {
       return Response.json({ ok: false, error: "Missing image token" }, { status: 400 });
     }
 
-    const cached = imageCache.get(token);
+    const cached = imageCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
       if (ifNoneMatch) {
         const etag = simpleHash(cached.body);
@@ -169,10 +210,10 @@ export async function GET(request: Request) {
           });
         }
       }
-      return sendCachedResponse(cached.body, cached.contentType, rangeHeader);
+      return sendCachedResponse(cached.body, cached.contentType, shouldTransform ? null : rangeHeader);
     }
 
-    const pending = pendingRequests.get(token);
+    const pending = pendingRequests.get(cacheKey);
     if (pending) {
       const result = await pending;
       if (!result) {
@@ -187,11 +228,16 @@ export async function GET(request: Request) {
           return new Response(null, { status: 304, headers: { ETag: etag } });
         }
       }
-      return sendCachedResponse(result.body, result.contentType, rangeHeader);
+      return sendCachedResponse(result.body, result.contentType, shouldTransform ? null : rangeHeader);
     }
 
-    const fetchPromise = fetchImageFromFeishu(token);
-    pendingRequests.set(token, fetchPromise);
+    const fetchPromise = (async () => {
+      const origin = await fetchImageFromFeishu(token);
+      if (!origin) return null;
+      if (!shouldTransform) return origin;
+      return transformImage({ body: origin.body, width, quality, format });
+    })();
+    pendingRequests.set(cacheKey, fetchPromise);
 
     try {
       const result = await fetchPromise;
@@ -202,7 +248,7 @@ export async function GET(request: Request) {
         );
       }
 
-      imageCache.set(token, {
+      imageCache.set(cacheKey, {
         expiresAt: Date.now() + IMAGE_CACHE_TTL_MS,
         contentType: result.contentType,
         body: result.body,
@@ -214,9 +260,9 @@ export async function GET(request: Request) {
           return new Response(null, { status: 304, headers: { ETag: etag } });
         }
       }
-      return sendCachedResponse(result.body, result.contentType, rangeHeader);
+      return sendCachedResponse(result.body, result.contentType, shouldTransform ? null : rangeHeader);
     } finally {
-      pendingRequests.delete(token);
+      pendingRequests.delete(cacheKey);
     }
   } catch (error) {
     console.error("[Feishu Image Route Error]", error);

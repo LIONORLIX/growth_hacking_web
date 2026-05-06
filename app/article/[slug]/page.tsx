@@ -41,6 +41,12 @@ import { ArticleBodyPreviewSkeleton } from "./modules/article-body-preview-skele
 import { ArticleStreamFooter } from "./modules/article-stream-footer";
 import { ArticleErrorState } from "./modules/article-error-state";
 import { ErrorBoundary } from "@/app/components/error-boundary";
+import {
+  getCachedArticle,
+  getCachedPlaybookRecord,
+  setCachedArticle,
+  setCachedPlaybookRecord,
+} from "@/lib/client/article-cache";
 
 const APP_TOKEN = "B4K3bAYKTau24es6Dxdcq3FEnig";
 const TABLE_ID = "tblHalmUkZ8AZSgp";
@@ -98,6 +104,12 @@ function ArticlePage() {
     if (articleRecordTitle?.trim()) return articleRecordTitle.trim();
     return articleTitle;
   }, [articleRecordTitle, articleTitle]);
+
+  useEffect(() => {
+    const title = stickyBarTitle?.trim();
+    if (!title) return;
+    document.title = title;
+  }, [stickyBarTitle]);
   const tocItems = useMemo((): TocItem[] => {
     const items: TocItem[] = [];
     if (article?.blocks?.length) {
@@ -232,7 +244,7 @@ function ArticlePage() {
       try {
         let docsUrl = "";
         let documentId = "";
-        let recordId = slug;
+        const recordId = (recordIdFromQuery || slug).trim();
         let articleApiUrl = "";
 
         if (debugEnabled) {
@@ -247,100 +259,158 @@ function ArticlePage() {
           docsUrl = debugDocsUrl ?? "";
           documentId = debugDocsUrl ? extractDocumentId(debugDocsUrl) ?? "" : "";
         } else {
-          const playbookRes = await fetch(
-            `/api/playbook?${new URLSearchParams({
-              slug,
-              ...(recordIdFromQuery ? { recordId: recordIdFromQuery } : {}),
-            }).toString()}`
-          );
-          const playbookResult = await playbookRes.json();
+          const playbookCacheKey = `slug=${slug}|rid=${recordIdFromQuery || ""}`;
+          const cachedRecord = getCachedPlaybookRecord(playbookCacheKey);
 
-          if (!playbookResult.ok) {
-            throw new Error(playbookResult.error || "Record not found");
+          if (cachedRecord) {
+            setArticleRecordTitle(
+              (cachedRecord.fields?.["Title"] as string) ||
+                (cachedRecord.fields?.["title"] as string) ||
+                null
+            );
+            setArticleSubtitle(
+              (cachedRecord.fields?.["Subtitle"] as string) ||
+                (cachedRecord.fields?.["subtitle"] as string) ||
+                null
+            );
+            setArticleSummary(
+              (cachedRecord.fields?.["Summary"] as string) ||
+                (cachedRecord.fields?.["summary"] as string) ||
+                null
+            );
+            setArticleSeed(
+              heroGradientSeedForRecord({
+                record_id: cachedRecord.record_id,
+                fields: cachedRecord.fields as Record<string, unknown>,
+              })
+            );
+            const themeHexes = themeHexesFromFields(cachedRecord.fields as Record<string, unknown>);
+            setArticleThemeHex(themeHexes[0] ?? null);
+            setArticleThemeAccentHexes(themeHexes.slice(1));
+            docsUrl = pickArticleDocsUrl(cachedRecord.fields as Record<string, unknown>) ?? "";
+            documentId = extractDocumentId(docsUrl) ?? "";
+          } else {
+            // 不阻塞正文加载：Playbook 元信息在后台补齐
+            void (async () => {
+              try {
+                const playbookRes = await fetch(
+                  `/api/playbook?${new URLSearchParams({
+                    slug,
+                    ...(recordIdFromQuery ? { recordId: recordIdFromQuery } : {}),
+                  }).toString()}`
+                );
+                const playbookResult = await playbookRes.json();
+                if (!playbookResult.ok) return;
+                const record = playbookResult.data;
+                if (cancelled) return;
+                setCachedPlaybookRecord(playbookCacheKey, record);
+                setArticleRecordTitle(
+                  (record.fields["Title"] as string) || (record.fields["title"] as string) || null
+                );
+                setArticleSubtitle(
+                  (record.fields["Subtitle"] as string) ||
+                    (record.fields["subtitle"] as string) ||
+                    null
+                );
+                setArticleSummary(
+                  (record.fields["Summary"] as string) ||
+                    (record.fields["summary"] as string) ||
+                    null
+                );
+                setArticleSeed(
+                  heroGradientSeedForRecord({
+                    record_id: record.record_id,
+                    fields: record.fields as Record<string, unknown>,
+                  })
+                );
+                const themeHexes = themeHexesFromFields(record.fields as Record<string, unknown>);
+                setArticleThemeHex(themeHexes[0] ?? null);
+                setArticleThemeAccentHexes(themeHexes.slice(1));
+              } catch {
+                // ignore
+              }
+            })();
           }
 
-          const record = playbookResult.data;
-          recordId = record.record_id;
-          setArticleRecordTitle(
-            (record.fields["Title"] as string) || (record.fields["title"] as string) || null
-          );
-          setArticleSubtitle((record.fields["Subtitle"] as string) || (record.fields["subtitle"] as string) || null);
-          setArticleSummary((record.fields["Summary"] as string) || (record.fields["summary"] as string) || null);
-          setArticleSeed(
-            heroGradientSeedForRecord({
-              record_id: record.record_id,
-              fields: record.fields as Record<string, unknown>,
-            }),
-          );
-          const themeHexes = themeHexesFromFields(record.fields as Record<string, unknown>);
-          setArticleThemeHex(themeHexes[0] ?? null);
-          setArticleThemeAccentHexes(themeHexes.slice(1));
-          docsUrl = pickArticleDocsUrl(record.fields as Record<string, unknown>) ?? "";
-          documentId = extractDocumentId(docsUrl) ?? "";
-          articleApiUrl = `/api/article?appToken=${APP_TOKEN}&tableId=${TABLE_ID}&recordId=${record.record_id}&stream=1`;
+          // JSON 模式（可缓存），避免每次路由切换都走 stream & 解析
+          articleApiUrl = `/api/article?appToken=${APP_TOKEN}&tableId=${TABLE_ID}&recordId=${encodeURIComponent(recordId)}`;
+        }
+
+        if (!debugEnabled) {
+          const cached = getCachedArticle(recordId);
+          if (cached) {
+            setArticle(cached);
+            setLoading(false);
+            setStreamComplete(true);
+          }
         }
 
         const articleRes = await fetch(articleApiUrl);
+        if (!articleRes.ok) throw new Error(`HTTP ${articleRes.status}`);
 
-        if (!articleRes.ok || !articleRes.body) {
-          throw new Error(`HTTP ${articleRes.status}`);
-        }
+        if (debugEnabled && articleRes.body) {
+          // debug 仍保留流式（便于独立调试 docs）
+          const reader = articleRes.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done || cancelled) break;
+            buffer += decoder.decode(value, { stream: !done });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              const msg = JSON.parse(line) as {
+                type: string;
+                data?: ArticleApiData;
+                error?: string;
+                recordId?: string;
+                docsUrl?: string;
+                documentId?: string;
+                docTitle?: string;
+                debug?: boolean;
+                content?: string;
+                imageUrls?: string[];
+                blocks?: ArticleApiData["blocks"];
+                tags?: string[];
+                coverMetaLine?: string;
+              };
 
-        const reader = articleRes.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done || cancelled) break;
-
-          buffer += decoder.decode(value, { stream: !done });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            const msg = JSON.parse(line) as {
-              type: string;
-              data?: ArticleApiData;
-              error?: string;
-              recordId?: string;
-              docsUrl?: string;
-              documentId?: string;
-              docTitle?: string;
-              debug?: boolean;
-              content?: string;
-              imageUrls?: string[];
-              blocks?: ArticleApiData["blocks"];
-              tags?: string[];
-              coverMetaLine?: string;
-            };
-
-            if (cancelled) break;
-
-            if (msg.type === "partial") {
-              setArticle({
-                recordId: msg.recordId ?? recordId,
-                docsUrl: msg.docsUrl ?? docsUrl,
-                documentId: msg.documentId ?? documentId,
-                docTitle: msg.docTitle,
-                debug: msg.debug,
-                content: msg.content ?? "",
-                imageUrls: msg.imageUrls ?? [],
-                blocks: msg.blocks,
-                tags: msg.tags ?? [],
-                coverMetaLine: msg.coverMetaLine,
-                partial: true,
-              });
-              setLoading(false);
-            } else if (msg.type === "complete") {
-              setArticle(msg.data ?? null);
-              setStreamComplete(true);
-              setLoading(false);
-            } else if (msg.type === "error") {
-              setError(msg.error ?? "加载文章失败");
-              setLoading(false);
+              if (cancelled) break;
+              if (msg.type === "partial") {
+                setArticle({
+                  recordId: msg.recordId ?? recordId,
+                  docsUrl: msg.docsUrl ?? docsUrl,
+                  documentId: msg.documentId ?? documentId,
+                  docTitle: msg.docTitle,
+                  debug: msg.debug,
+                  content: msg.content ?? "",
+                  imageUrls: msg.imageUrls ?? [],
+                  blocks: msg.blocks,
+                  tags: msg.tags ?? [],
+                  coverMetaLine: msg.coverMetaLine,
+                  partial: true,
+                });
+                setLoading(false);
+              } else if (msg.type === "complete") {
+                setArticle(msg.data ?? null);
+                setStreamComplete(true);
+                setLoading(false);
+              } else if (msg.type === "error") {
+                setError(msg.error ?? "加载文章失败");
+                setLoading(false);
+              }
             }
+          }
+        } else {
+          const articleJson = (await articleRes.json()) as { ok: boolean; data?: ArticleApiData; error?: string };
+          if (!articleJson.ok || !articleJson.data) throw new Error(articleJson.error || "加载文章失败");
+          if (!cancelled) {
+            setArticle(articleJson.data);
+            setCachedArticle(recordId, articleJson.data);
+            setStreamComplete(true);
+            setLoading(false);
           }
         }
       } catch (err) {

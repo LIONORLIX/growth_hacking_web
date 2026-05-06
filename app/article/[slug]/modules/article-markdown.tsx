@@ -625,6 +625,20 @@ export type RenderBlockOptions = {
   headingLevelMap?: Map<number, number>;
 };
 
+function withImageParams(src: string, params: Record<string, string | number | undefined>) {
+  try {
+    const url = new URL(src, "http://local");
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined) continue;
+      url.searchParams.set(key, String(value));
+    }
+    const out = url.toString();
+    return out.startsWith("http://local") ? out.replace("http://local", "") : src;
+  } catch {
+    return src;
+  }
+}
+
 export function renderBlock(
   block: ArticleBlock,
   ctx: RenderCtx,
@@ -726,7 +740,8 @@ export function renderBlock(
       return (
         <ArticleLazyImage
           key={`img-${blockIndex}`}
-          src={block.url}
+          src={withImageParams(block.url, { w: 1440, q: 72 })}
+          lightboxSrc={block.url}
           alt={`article-image-${blockIndex}`}
           className={styles.image}
         />

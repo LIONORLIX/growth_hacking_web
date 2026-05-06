@@ -2,6 +2,8 @@
  * 吸顶标题栏：滚动过 Hero 后固定在顶部，含返回 Playbook 与打开飞书文档。
  */
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export function ArticleStickyTitleBar({
   visible,
@@ -12,6 +14,11 @@ export function ArticleStickyTitleBar({
   articleTitle: string;
   docsUrl?: string;
 }) {
+  const router = useRouter();
+  useEffect(() => {
+    router.prefetch("/lark_growth_design_playbook");
+  }, [router]);
+
   return (
     <div
       className={`fixed inset-x-0 top-0 z-[70] border-b bg-white pt-safe transition-[opacity,transform] duration-200 ${

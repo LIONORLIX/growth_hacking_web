@@ -13,7 +13,14 @@ export async function GET(request: Request) {
     const publishedItems = allItems.filter(itemHasPublishedStatus);
 
     if (!slug && !recordId) {
-      return Response.json({ ok: true, data: { ...(data as object), items: publishedItems } });
+      return Response.json(
+        { ok: true, data: { ...(data as object), items: publishedItems } },
+        {
+          headers: {
+            "Cache-Control": "public, max-age=30, s-maxage=300, stale-while-revalidate=3600",
+          },
+        }
+      );
     }
 
     const items = publishedItems;
@@ -29,7 +36,14 @@ export async function GET(request: Request) {
       return Response.json({ ok: false, error: "Record not found" }, { status: 404 });
     }
 
-    return Response.json({ ok: true, data: record });
+    return Response.json(
+      { ok: true, data: record },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=60, s-maxage=600, stale-while-revalidate=3600",
+        },
+      }
+    );
   } catch (error) {
     return Response.json({ ok: false, error: String(error) }, { status: 500 });
   }

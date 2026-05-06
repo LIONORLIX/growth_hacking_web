@@ -6,11 +6,13 @@ import lazyStyles from "./article-lazy-image.module.css";
 
 export function ArticleLazyImage({
   src,
+  lightboxSrc,
   alt,
   className,
   priority = false,
 }: {
   src?: string;
+  lightboxSrc?: string;
   alt: string;
   className: string;
   priority?: boolean;
@@ -94,9 +96,9 @@ export function ArticleLazyImage({
           style={{ cursor: isLoaded ? "zoom-in" : undefined }}
         />
       ) : null}
-      {lightbox && src && (
+      {lightbox && (lightboxSrc ?? src) && (
         <ArticleImageLightbox
-          src={src}
+          src={(lightboxSrc ?? src)!}
           alt={alt}
           onClose={() => setLightbox(false)}
         />
