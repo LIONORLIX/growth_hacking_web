@@ -88,7 +88,6 @@ export function ArticleLazyImage({
             isLoaded ? lazyStyles.lazyImageLoaded : ""
           }`}
           loading={priority ? "eager" : "lazy"}
-          referrerPolicy="no-referrer"
           decoding="async"
           fetchPriority={priority ? "high" : "low"}
           onLoad={() => setIsLoaded(true)}

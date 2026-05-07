@@ -8,7 +8,8 @@ export function isProductionSameOriginApiRequest(request: Request): boolean {
   const referer = request.headers.get("referer") ?? "";
   const secFetchSite = (request.headers.get("sec-fetch-site") ?? "").toLowerCase();
 
-  if (secFetchSite === "same-origin") {
+  // same-site：同 registrable domain 的子资源（仍拒绝 cross-site 盗链）
+  if (secFetchSite === "same-origin" || secFetchSite === "same-site") {
     return true;
   }
   if (!host) {
