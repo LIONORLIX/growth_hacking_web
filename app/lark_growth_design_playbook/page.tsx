@@ -181,6 +181,14 @@ function playbookGridCardWidthPx(viewportW: number) {
   return contentW;
 }
 
+function optimizedFeishuImageUrl(src: string, width: number, quality = 72) {
+  if (!src.includes("/api/feishu-image")) return src;
+  const url = new URL(src, "https://local.invalid");
+  url.searchParams.set("w", String(Math.round(width)));
+  url.searchParams.set("q", String(quality));
+  return src.startsWith("http") ? url.toString() : `${url.pathname}?${url.searchParams.toString()}`;
+}
+
 /** 卡片态 Hero 高度：至少高于下方 1:1 列表卡片（与全屏↔卡片动画共用） */
 function heroCollapsedHeightPx(viewportW: number, viewportH: number) {
   const h = Math.max(1, viewportH);
@@ -878,6 +886,28 @@ function PlaybookPage() {
 
   const heroSp = heroSpDisplay;
   const heroLayout = computeHeroLayout(viewportSize.w, viewportSize.h, heroSp);
+  const heroImageWidth = viewportSize.w >= 1024 ? 1600 : 960;
+  const activeHeroBgImageUrl = useMemo(
+    () =>
+      activeHeroBgStaticUrl
+        ? optimizedFeishuImageUrl(activeHeroBgStaticUrl, heroImageWidth, 72)
+        : null,
+    [activeHeroBgStaticUrl, heroImageWidth]
+  );
+
+  useEffect(() => {
+    if (!activeHeroBgImageUrl) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = activeHeroBgImageUrl;
+    link.fetchPriority = "high";
+    document.head.appendChild(link);
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, [activeHeroBgImageUrl]);
+
   const heroShellBgTransparent = heroSp < 0.02;
   /** 全屏幻灯：隐藏首屏以下 UI，避免缩放/圆角外漏出白底或列表 */
   const playbookChromeFullscreen = heroChromeSurface === "fullscreen";
@@ -997,8 +1027,8 @@ function PlaybookPage() {
                   aria-hidden
                   style={{
                     backgroundColor: "#e7e5e4",
-                    backgroundImage: activeHeroBgStaticUrl
-                      ? `url('${activeHeroBgStaticUrl}')`
+                    backgroundImage: activeHeroBgImageUrl
+                      ? `url('${activeHeroBgImageUrl}')`
                       : "none",
                     backgroundSize: "cover",
                     backgroundPosition: "center",
