@@ -1,4 +1,5 @@
 import { getTenantAccessToken } from "@/lib/feishu/auth";
+import { isProductionSameOriginApiRequest } from "@/lib/feishu/same-origin-api-request";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
@@ -189,14 +190,8 @@ export async function GET(request: Request) {
     const format = pickOutputFormat(request.headers.get("accept"));
     const cacheKey = shouldTransform ? `${token}|w=${width ?? ""}|q=${quality}|f=${format}` : token ?? "";
 
-    if (process.env.NODE_ENV === "production") {
-      const referer = request.headers.get("referer") || "";
-      const origin = request.headers.get("origin") || "";
-      const host = request.headers.get("host") || "";
-      const isSameOrigin = origin.includes(host) || referer.includes(host);
-      if (!isSameOrigin) {
-        return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
-      }
+    if (process.env.NODE_ENV === "production" && !isProductionSameOriginApiRequest(request)) {
+      return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
     if (!token) {

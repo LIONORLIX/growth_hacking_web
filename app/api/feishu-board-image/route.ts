@@ -1,4 +1,5 @@
 import { getTenantAccessToken } from "@/lib/feishu/auth";
+import { isProductionSameOriginApiRequest } from "@/lib/feishu/same-origin-api-request";
 
 const BOARD_IMAGE_CACHE_TTL_MS = 10 * 60 * 1000;
 const BOARD_IMAGE_CACHE_CONTROL_HEADER =
@@ -13,14 +14,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token");
 
-    if (process.env.NODE_ENV === "production") {
-      const referer = request.headers.get("referer") || "";
-      const origin = request.headers.get("origin") || "";
-      const host = request.headers.get("host") || "";
-      const isSameOrigin = origin.includes(host) || referer.includes(host);
-      if (!isSameOrigin) {
-        return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
-      }
+    if (process.env.NODE_ENV === "production" && !isProductionSameOriginApiRequest(request)) {
+      return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
     if (!token) {
