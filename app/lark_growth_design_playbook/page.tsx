@@ -78,6 +78,9 @@ type BaseRecord = {
     /** 列表/封面主文案；与文章页一致，可与 Title 组合展示 */
     Subtitle?: string;
     subtitle?: string;
+    /** 多维表格摘要，用于卡片 hover 文章预览 */
+    Summary?: string;
+    summary?: string;
     /** 单选或多选；Hero 仅含 highlight 的条目 */
     Status?: unknown;
     [key: string]: any;
@@ -121,8 +124,14 @@ type BaseData = {
   has_more: boolean;
 };
 
+type CardArticlePreview = {
+  summary: string;
+  firstImageUrl: string | null;
+};
+
 const APP_TOKEN = getPlaybookAppToken();
 const TABLE_ID = getPlaybookTableId();
+const cardArticlePreviewCache = new Map<string, CardArticlePreview>();
 
 /** Hero 全屏 ↔ 卡片：比 cubic 更顺滑的加减速 */
 function easeInOutQuint(t: number): number {
@@ -189,11 +198,29 @@ function optimizedFeishuImageUrl(src: string, width: number, quality = 72) {
   return src.startsWith("http") ? url.toString() : `${url.pathname}?${url.searchParams.toString()}`;
 }
 
-/** 卡片态 Hero 高度：至少高于下方 1:1 列表卡片（与全屏↔卡片动画共用） */
+function firstArticleImageFromApiData(data: unknown): string | null {
+  const imageUrls = (data as { imageUrls?: unknown }).imageUrls;
+  if (Array.isArray(imageUrls)) {
+    const first = imageUrls.find((url): url is string => typeof url === "string" && url.trim().length > 0);
+    if (first) return optimizedFeishuImageUrl(first.trim(), 720, 68);
+  }
+
+  const blocks = (data as { blocks?: unknown }).blocks;
+  if (!Array.isArray(blocks)) return null;
+  for (const block of blocks) {
+    const imageUrl = (block as { imageUrl?: unknown }).imageUrl;
+    if (typeof imageUrl === "string" && imageUrl.trim().length > 0) {
+      return optimizedFeishuImageUrl(imageUrl.trim(), 720, 68);
+    }
+  }
+  return null;
+}
+
+/** 卡片态 Hero 高度：至少高于下方 4:3 横向列表封面（与全屏↔卡片动画共用） */
 function heroCollapsedHeightPx(viewportW: number, viewportH: number) {
   const h = Math.max(1, viewportH);
   const halfViewportH = Math.round(h * 0.5);
-  const cardH = Math.ceil(playbookGridCardWidthPx(viewportW));
+  const cardH = Math.ceil(playbookGridCardWidthPx(viewportW) * 0.75);
   return Math.max(halfViewportH, cardH + 1);
 }
 
@@ -505,13 +532,22 @@ function PlaybookCardItem({
   stripEmoji: (text: string) => string;
 }) {
   const router = useRouter();
+  const previewRequestStartedRef = useRef(false);
   const cardTitle = stripBrTags(
     playbookFieldString(item.fields, "Title", "title")
   );
   const cardSubtitle = stripBrTags(
     playbookFieldString(item.fields, "Subtitle", "subtitle")
   );
+  const cardSummary = stripBrTags(
+    playbookFieldString(item.fields, "Summary", "summary")
+  );
   const cardMainHeadline = cardTitle || cardSubtitle || "Untitled";
+  const [articlePreview, setArticlePreview] = useState<CardArticlePreview>(() => {
+    const cached = cardArticlePreviewCache.get(item.record_id);
+    return cached ?? { summary: cardSummary, firstImageUrl: null };
+  });
+  const cardPreviewSummary = articlePreview.summary || cardSummary || cardSubtitle || cardTitle;
   const showSubtitleBelow = Boolean(cardTitle && cardSubtitle);
   const cardMeta = formatCoverMetaLine(
     item.fields as Record<string, unknown>,
@@ -525,25 +561,61 @@ function PlaybookCardItem({
       )}`,
     [item.fields.Slug, item.record_id]
   );
+  const loadArticlePreview = useCallback(() => {
+    router.prefetch(href);
+    const cached = cardArticlePreviewCache.get(item.record_id);
+    if (cached) {
+      setArticlePreview(cached);
+      return;
+    }
+    if (previewRequestStartedRef.current) return;
+    previewRequestStartedRef.current = true;
+
+    setArticlePreview({ summary: cardSummary, firstImageUrl: null });
+
+    const params = new URLSearchParams({
+      appToken: APP_TOKEN,
+      tableId: TABLE_ID,
+      recordId: item.record_id,
+    });
+
+    void fetch(`/api/article?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((result) => {
+        if (!result?.ok) {
+          previewRequestStartedRef.current = false;
+          return;
+        }
+        const preview = {
+          summary: cardSummary,
+          firstImageUrl: firstArticleImageFromApiData(result.data),
+        };
+        cardArticlePreviewCache.set(item.record_id, preview);
+        setArticlePreview(preview);
+      })
+      .catch(() => {
+        previewRequestStartedRef.current = false;
+      });
+  }, [cardSummary, href, item.record_id, router]);
+
   return (
     <Link
       key={`${item.record_id}-${selectedCategory ?? "c"}-${selectedRegion ?? "r"}`}
       href={href}
       className="playbook-card-enter group flex flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
+      onFocus={loadArticlePreview}
       style={{
         animationDelay: `${Math.min(index, 24) * 64}ms`,
       }}
     >
       <div
-        className="relative aspect-square w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
-        onMouseEnter={() => {
-          router.prefetch(href);
-        }}
+        className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
+        onMouseEnter={loadArticlePreview}
       >
         <PlaybookCardCover
           staticBgUrl={cardBgStaticUrl}
         />
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 px-2 text-center sm:gap-2 sm:px-3">
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 px-2 text-center transition-opacity duration-300 ease-out group-hover:opacity-0 sm:gap-2 sm:px-3">
           {cardMeta ? (
             <p className="line-clamp-2 text-center text-[0.625rem] font-medium uppercase leading-tight tracking-wide text-white/75 sm:text-[0.6875rem]">
               {cardMeta}
@@ -552,6 +624,22 @@ function PlaybookCardItem({
           <h2 className="line-clamp-4 text-balance text-xs font-semibold leading-snug tracking-tight text-white sm:text-sm md:text-base">
             {cardMainHeadline}
           </h2>
+        </div>
+        {articlePreview.firstImageUrl ? (
+          <img
+            src={articlePreview.firstImageUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="pointer-events-none absolute inset-0 z-20 h-full w-full object-cover opacity-0 grayscale transition-opacity duration-300 ease-out group-hover:opacity-100"
+            aria-hidden
+          />
+        ) : null}
+        <div className="pointer-events-none absolute inset-0 z-[25] bg-black/35 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-4 pb-4 pt-12 text-left text-white opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100 sm:px-5 sm:pb-5 sm:pt-16">
+          <p className="line-clamp-3 text-xs font-medium leading-relaxed text-white/90 sm:text-sm">
+            {cardPreviewSummary || "暂无 Summary"}
+          </p>
         </div>
       </div>
 
