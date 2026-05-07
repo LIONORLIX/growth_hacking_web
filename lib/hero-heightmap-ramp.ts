@@ -5,6 +5,40 @@
 
 import { baseHueFromSeedAndTheme } from "@/lib/hero-parametric-gradient";
 
+/** 手动可调的 shader 配色参数：色相中心/范围、抖动、饱和度与亮度（HSB/HSV）区间。 */
+export const HERO_HEIGHTMAP_COLOR_TUNING = {
+  /** 目标色相中心（0–360，蓝色大约在 200–240） */
+  hueCenter: 100,
+  /** 色相带半宽，实际带宽 ≈ hueCenter ± hueBand */
+  hueBand: 120,
+  /** stop 间额外色相抖动（度数，建议 0–40） */
+  jitterHue: 22,
+  /** stop 间额外饱和度抖动（百分比，建议 0–30） */
+  jitterSat: 16,
+  /** 中间 stop 亮度基线（百分比 0–100，HSB 的 B） */
+  valueBase: 80,
+  /** 中间 stop 亮度波动范围（百分比，最终在 valueBase ~ valueBase+valueRange） */
+  valueRange: 20,
+  /** 深色区饱和度基线（百分比 0–100，整体越大颜色越“浓”） */
+  satBase: 50,
+  /** 深色区饱和度波动范围（百分比，用于 deepSat 的随机变化） */
+  satRange: 10,
+} as const;
+
+/**
+ * 将任意色相收敛到以 hueCenter 为中心、\[hueCenter±hueBand] 的色带。
+ * 仍保留 seed 之间的差异，只是整体限制在一个可控的色相范围内。
+ */
+function remapHueToBand(hue: number): number {
+  const h = ((hue % 360) + 360) % 360;
+  const t = h / 360;
+  const { hueCenter, hueBand } = HERO_HEIGHTMAP_COLOR_TUNING;
+  const band = Math.max(0, Math.min(180, hueBand));
+  const minH = hueCenter - band;
+  const maxH = hueCenter + band;
+  return ((minH + (maxH - minH) * t) % 360 + 360) % 360;
+}
+
 function hash32(seed: string): number {
   let hash = 0;
   for (let i = 0; i < seed.length; i += 1) {
@@ -22,17 +56,41 @@ function createSeededRandom(seed: string): () => number {
   };
 }
 
-function hslToRgbByte(h: number, s: number, l: number): [number, number, number] {
+function hsvToRgbByte(h: number, s: number, v: number): [number, number, number] {
   const hue = ((h % 360) + 360) % 360;
   const sat = Math.max(0, Math.min(100, s)) / 100;
-  const lig = Math.max(0, Math.min(100, l)) / 100;
-  const a = sat * Math.min(lig, 1 - lig);
-  const f = (n: number) => {
-    const k = (n + hue / 30) % 12;
-    const c = lig - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
-    return Math.round(255 * c);
-  };
-  return [f(0), f(8), f(4)];
+  const val = Math.max(0, Math.min(100, v)) / 100;
+  const c = val * sat;
+  const hp = hue / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r1 = 0;
+  let g1 = 0;
+  let b1 = 0;
+  if (hp >= 0 && hp < 1) {
+    r1 = c;
+    g1 = x;
+  } else if (hp < 2) {
+    r1 = x;
+    g1 = c;
+  } else if (hp < 3) {
+    g1 = c;
+    b1 = x;
+  } else if (hp < 4) {
+    g1 = x;
+    b1 = c;
+  } else if (hp < 5) {
+    r1 = x;
+    b1 = c;
+  } else {
+    r1 = c;
+    b1 = x;
+  }
+  const m = val - c;
+  return [
+    Math.round((r1 + m) * 255),
+    Math.round((g1 + m) * 255),
+    Math.round((b1 + m) * 255),
+  ];
 }
 
 function smoothstep01(t: number): number {
@@ -62,20 +120,20 @@ export function heroHeightmapStopsFromSeed(
 ): HeightmapColorStop[] {
   const rand = createSeededRandom(`${seed}:heightmap-stops`);
   const h0 = hash32(seed);
-  const baseHue = baseHueFromSeedAndTheme(seed, themeBaseHex);
+  const baseHue = remapHueToBand(baseHueFromSeedAndTheme(seed, themeBaseHex));
   const step1 = 18 + ((h0 >> 6) % 28);
   const step2 = 44 + ((h0 >> 12) % 36);
   const themeHue1 = themeAccentHexes[0]
-    ? baseHueFromSeedAndTheme(seed, themeAccentHexes[0])
+    ? remapHueToBand(baseHueFromSeedAndTheme(seed, themeAccentHexes[0]))
     : null;
   const themeHue2 = themeAccentHexes[1]
-    ? baseHueFromSeedAndTheme(seed, themeAccentHexes[1])
+    ? remapHueToBand(baseHueFromSeedAndTheme(seed, themeAccentHexes[1]))
     : null;
   const huePalette = [
     baseHue,
-    themeHue1 ?? (baseHue + step1) % 360,
-    themeHue2 ?? (baseHue + step2) % 360,
-    (baseHue + 92 + ((h0 >> 3) % 36)) % 360,
+    themeHue1 ?? remapHueToBand((baseHue + step1) % 360),
+    themeHue2 ?? remapHueToBand((baseHue + step2) % 360),
+    remapHueToBand((baseHue + 92 + ((h0 >> 3) % 36)) % 360),
   ];
 
   const nInner = 5;
@@ -86,27 +144,33 @@ export function heroHeightmapStopsFromSeed(
   innerTs.sort((a, b) => a - b);
 
   const stops: HeightmapColorStop[] = [];
-  const deepSat = 52 + ((h0 >> 18) % 18);
-  const midSat = Math.min(72, deepSat + 8 + ((h0 >> 22) % 10));
-  const glowSat = Math.max(38, deepSat - ((h0 >> 26) % 12));
+  // 略降饱和度、提高整体明度，让配色更偏浅；饱和度基线和范围由配置控制。
+  const { satBase, satRange } = HERO_HEIGHTMAP_COLOR_TUNING;
+  const deepSat = satBase + ((h0 >> 18) % Math.max(1, satRange));
+  const midSat = Math.min(70, deepSat + 6 + ((h0 >> 22) % 8));
+  const glowSat = Math.max(36, deepSat - ((h0 >> 26) % 10));
 
   stops.push({
     t: 0,
-    rgb: hslToRgbByte(baseHue, deepSat, 22 + ((h0 >> 4) % 18)),
+    // 原始暗部提升为中等亮度，避免过暗
+    rgb: hsvToRgbByte(baseHue, deepSat, 40 + ((h0 >> 4) % 12)),
   });
 
   for (let i = 0; i < nInner; i += 1) {
     const spanHue = huePalette[i % huePalette.length]!;
-    const jitter = (rand() - 0.5) * 28;
+    const { jitterHue, jitterSat, valueBase, valueRange } = HERO_HEIGHTMAP_COLOR_TUNING;
+    // 在统一色带基础上增加冷暖和明暗变化。
+    const jitter = (rand() - 0.5) * jitterHue * 2;
     const hue = (spanHue + jitter + 360) % 360;
-    const sat = midSat + (rand() - 0.5) * 16;
-    const light = 38 + rand() * 48;
-    stops.push({ t: innerTs[i], rgb: hslToRgbByte(hue, sat, light) });
+    const sat = midSat + (rand() - 0.5) * jitterSat * 2;
+    const value = valueBase + rand() * valueRange;
+    stops.push({ t: innerTs[i], rgb: hsvToRgbByte(hue, sat, value) });
   }
 
   stops.push({
     t: 1,
-    rgb: hslToRgbByte((baseHue + step1 + step2) % 360, glowSat, 78 + ((h0 >> 8) % 18)),
+    // 高光进一步偏亮，整体更浅
+    rgb: hsvToRgbByte((baseHue + step1 + step2) % 360, glowSat, 84 + ((h0 >> 8) % 12)),
   });
 
   stops.sort((a, b) => a.t - b.t);

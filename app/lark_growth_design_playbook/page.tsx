@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -14,21 +13,13 @@ import {
 import { useRouter } from "next/navigation";
 import { getCachedPlaybookBase, setCachedPlaybookBase } from "@/lib/client/playbook-cache";
 
-import {
-  heroGradientSeedForRecord,
-  themeHexesFromFields,
-} from "@/lib/hero-parametric-gradient";
-
 import { PlaybookFullscreenPathTracers } from "@/app/lark_growth_design_playbook/playbook-fullscreen-path-tracers";
 
 import { formatCoverMetaLine } from "@/lib/cover-meta-line";
 import { getPlaybookAppToken, getPlaybookTableId } from "@/lib/playbook-data-source";
 import { itemHasHeroHighlight, itemHasPublishedStatus } from "@/lib/playbook-status";
+import { bgStaticAttachmentUrlFromFields } from "./playbook-card-cover-media";
 import { ErrorBoundary } from "@/app/components/error-boundary";
-
-const PlaybookHeroShaderBackground = dynamic(() => import("./playbook-hero-shader-bg"), {
-  ssr: false,
-});
 
 const BR_TAG_REGEX = /<br\s*\/?>/gi;
 
@@ -454,26 +445,22 @@ function PlaybookHeroEmptyFullscreenChrome({ onToggleLayout }: { onToggleLayout:
 }
 
 function PlaybookCardCover({
-  seed,
-  themeBaseHex,
-  themeAccentHexes,
-  reduceMotion,
-  hovered,
+  staticBgUrl,
 }: {
-  seed: string;
-  themeBaseHex: string | null;
-  themeAccentHexes: string[];
-  reduceMotion: boolean;
-  hovered: boolean;
+  staticBgUrl: string | null;
 }) {
   return (
-    <PlaybookHeroShaderBackground
-      seed={seed}
-      themeBaseHex={themeBaseHex}
-      themeAccentHexes={themeAccentHexes}
-      variant="card"
-      motionPaused={reduceMotion || !hovered}
-      viewportGate
+    <div
+      className="absolute inset-0 z-0 scale-200 transform-gpu transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] group-hover:scale-240"
+      aria-hidden
+      style={{
+        backgroundColor: "#e7e5e4",
+        backgroundImage: staticBgUrl ? `url('${staticBgUrl}')` : "none",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        filter: "blur(0px)",
+      }}
     />
   );
 }
@@ -483,17 +470,14 @@ function PlaybookCardItem({
   index,
   selectedCategory,
   selectedRegion,
-  reduceHeroShaderMotion,
   stripEmoji,
 }: {
   item: BaseRecord;
   index: number;
   selectedCategory: string | null;
   selectedRegion: string | null;
-  reduceHeroShaderMotion: boolean;
   stripEmoji: (text: string) => string;
 }) {
-  const [hovered, setHovered] = useState(false);
   const router = useRouter();
   const cardTitle = stripBrTags(
     playbookFieldString(item.fields, "Title", "title")
@@ -507,8 +491,7 @@ function PlaybookCardItem({
     item.fields as Record<string, unknown>,
     stripEmoji
   );
-  const cardSeed = heroGradientSeedForRecord(item);
-  const cardThemeHexes = themeHexesFromFields(item.fields as Record<string, unknown>);
+  const cardBgStaticUrl = bgStaticAttachmentUrlFromFields(item.fields as Record<string, unknown>);
   const href = useMemo(
     () =>
       `/article/${item.fields.Slug || item.record_id}?rid=${encodeURIComponent(
@@ -528,17 +511,11 @@ function PlaybookCardItem({
       <div
         className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
         onMouseEnter={() => {
-          setHovered(true);
           router.prefetch(href);
         }}
-        onMouseLeave={() => setHovered(false)}
       >
         <PlaybookCardCover
-          seed={cardSeed}
-          themeBaseHex={cardThemeHexes[0] ?? null}
-          themeAccentHexes={cardThemeHexes.slice(1)}
-          reduceMotion={reduceHeroShaderMotion}
-          hovered={hovered}
+          staticBgUrl={cardBgStaticUrl}
         />
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 px-2 text-center sm:gap-2 sm:px-3">
           {cardMeta ? (
@@ -765,13 +742,9 @@ function PlaybookPage() {
     heroSlides.length > 0
       ? (heroSlides[Math.max(0, Math.min(heroSlides.length - 1, activeHeroSlide))] ?? null)
       : null;
-  const activeHeroBgSeed = activeHeroBgRecord ? heroGradientSeedForRecord(activeHeroBgRecord) : "";
-  const heroShaderSeed = activeHeroBgRecord ? activeHeroBgSeed : "playbook-empty-hero";
-  const activeHeroThemeHexes = activeHeroBgRecord
-    ? themeHexesFromFields(activeHeroBgRecord.fields as Record<string, unknown>)
-    : [];
-  const activeHeroThemeHex = activeHeroThemeHexes[0] ?? null;
-  const activeHeroThemeAccentHexes = activeHeroThemeHexes.slice(1);
+  const activeHeroBgStaticUrl = activeHeroBgRecord
+    ? bgStaticAttachmentUrlFromFields(activeHeroBgRecord.fields as Record<string, unknown>)
+    : null;
   const showCardTopDebugControls =
     typeof process !== "undefined" &&
     (process.env.NEXT_PUBLIC_PLAYBOOK_DEBUG === "true" || process.env.NEXT_PUBLIC_PLAYBOOK_DEBUG === "1");
@@ -1001,19 +974,21 @@ function PlaybookPage() {
                   maxWidth: "100%",
                 }}
               >
-                <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-                  {reduceHeroShaderMotion ? (
-                    <div className="absolute inset-0 bg-stone-900" />
-                  ) : (
-                    <PlaybookHeroShaderBackground
-                      key={heroShaderSeed}
-                      seed={heroShaderSeed}
-                      themeBaseHex={activeHeroThemeHex}
-                      themeAccentHexes={activeHeroThemeAccentHexes}
-                      motionPaused={heroSnapLayoutAnimating}
-                    />
-                  )}
-                </div>
+                <div
+                  className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+                  aria-hidden
+                  style={{
+                    backgroundColor: "#e7e5e4",
+                    backgroundImage: activeHeroBgStaticUrl
+                      ? `url('${activeHeroBgStaticUrl}')`
+                      : "none",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
+                    transform: "scale(1.06)",
+                    transformOrigin: "center",
+                  }}
+                />
 
                 {playbookChromeFullscreen ? (
                   heroSlides.length > 0 ? (
@@ -1131,65 +1106,67 @@ function PlaybookPage() {
               >
                 <div
                   ref={filterBarRef}
-                  className={`sticky z-50 -mx-6 bg-white px-6 py-0 transition-shadow sm:-mx-8 sm:px-8 sm:py-0 lg:mx-0 lg:px-0 ${
+                  className={`sticky z-50 py-0 transition-shadow ${
                     isFilterSticky ? "shadow-[0_1px_3px_rgba(0,0,0,0.06)]" : ""
                   }`}
                   style={{ top: 0 }}
                 >
-                  <div className="relative">
-                    <div className="overflow-x-auto">
-                      <div className="flex min-w-max items-center justify-between gap-8 border-b border-stone-200 pt-4 text-sm">
-                        <div className="flex items-center gap-5">
-                          <button
-                            onClick={() => setSelectedCategory(null)}
-                            className={`-mb-px min-h-[44px] border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
-                              !selectedCategory
-                                ? "border-stone-900 font-semibold text-stone-900"
-                                : "border-transparent text-stone-500 hover:text-stone-900"
-                            }`}
-                          >
-                            All Categories
-                          </button>
-                          {getCategories().map((category) => (
+                  <div className="pointer-events-none absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 bg-white" />
+                  <div className="relative mx-auto w-full max-w-7xl px-0">
+                    <div className="relative">
+                      <div className="overflow-x-auto">
+                        <div className="flex w-max min-w-full flex-col items-start gap-2 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+                          <div className="flex items-center gap-5">
                             <button
-                              key={category}
-                              onClick={() => setSelectedCategory(category)}
+                              onClick={() => setSelectedCategory(null)}
                               className={`-mb-px min-h-[44px] border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
-                                selectedCategory === category
+                                !selectedCategory
                                   ? "border-stone-900 font-semibold text-stone-900"
                                   : "border-transparent text-stone-500 hover:text-stone-900"
                               }`}
                             >
-                              {stripEmoji(category)}
+                              All Categories
                             </button>
-                          ))}
-                        </div>
+                            {getCategories().map((category) => (
+                              <button
+                                key={category}
+                                onClick={() => setSelectedCategory(category)}
+                                className={`-mb-px min-h-[44px] border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
+                                  selectedCategory === category
+                                    ? "border-stone-900 font-semibold text-stone-900"
+                                    : "border-transparent text-stone-500 hover:text-stone-900"
+                                }`}
+                              >
+                                {stripEmoji(category)}
+                              </button>
+                            ))}
+                          </div>
 
-                        <div className="flex items-center gap-2 pb-2.5 pl-2">
-                          <span className="text-xs uppercase tracking-wide text-stone-400">Region</span>
-                          <button
-                            onClick={() => setSelectedRegion(null)}
-                            className={`rounded-full px-3 py-2 text-xs transition-colors ${
-                              !selectedRegion
-                                ? "bg-stone-100 text-stone-700"
-                                : "text-stone-400 hover:text-stone-700"
-                            }`}
-                          >
-                            All
-                          </button>
-                          {getRegions().map((region) => (
+                          <div className="flex items-center gap-2 pb-2.5 sm:pl-2">
                             <button
-                              key={region}
-                              onClick={() => setSelectedRegion(region)}
+                              onClick={() => setSelectedRegion(null)}
                               className={`rounded-full px-3 py-2 text-xs transition-colors ${
-                                selectedRegion === region
+                                !selectedRegion
                                   ? "bg-stone-100 text-stone-700"
                                   : "text-stone-400 hover:text-stone-700"
                               }`}
                             >
-                              {stripEmoji(region)}
+                              All Regions
                             </button>
-                          ))}
+                            {getRegions().map((region) => (
+                              <button
+                                key={region}
+                                onClick={() => setSelectedRegion(region)}
+                                className={`rounded-full px-3 py-2 text-xs transition-colors ${
+                                  selectedRegion === region
+                                    ? "bg-stone-100 text-stone-700"
+                                    : "text-stone-400 hover:text-stone-700"
+                                }`}
+                              >
+                                {stripEmoji(region)}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1219,7 +1196,7 @@ function PlaybookPage() {
                       >
                         <div
                           key={cardGridRevealEpoch}
-                          className="grid grid-cols-1 gap-6 pt-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-6"
+                          className="grid grid-cols-1 gap-8 pt-8 sm:grid-cols-2 sm:gap-9 lg:grid-cols-3 lg:gap-10"
                         >
                           {visibleItems.map((item, i) => (
                             <PlaybookCardItem
@@ -1228,7 +1205,6 @@ function PlaybookPage() {
                               index={i}
                               selectedCategory={selectedCategory}
                               selectedRegion={selectedRegion}
-                              reduceHeroShaderMotion={reduceHeroShaderMotion}
                               stripEmoji={stripEmoji}
                             />
                           ))}

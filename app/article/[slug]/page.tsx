@@ -25,10 +25,6 @@ import {
   TOC_MAX_DISPLAY_LEVEL,
 } from "./article-heading-level-map";
 import { extractDocumentId, pickArticleDocsUrl } from "./article-doc-utils";
-import {
-  heroGradientSeedForRecord,
-  themeHexesFromFields,
-} from "@/lib/hero-parametric-gradient";
 import { parseArticleBlocks } from "./modules/article-markdown";
 import { ArticleContent } from "./modules/article-content";
 import { ArticleSsrFallback } from "./modules/article-ssr-fallback";
@@ -47,6 +43,7 @@ import {
   setCachedArticle,
   setCachedPlaybookRecord,
 } from "@/lib/client/article-cache";
+import { bgStaticAttachmentUrlFromFields } from "@/app/lark_growth_design_playbook/playbook-card-cover-media";
 
 const APP_TOKEN = "B4K3bAYKTau24es6Dxdcq3FEnig";
 const TABLE_ID = "tblHalmUkZ8AZSgp";
@@ -68,9 +65,7 @@ function ArticlePage() {
   const [splashVisible, setSplashVisible] = useState(true);
   const [isFetching, setIsFetching] = useState(true);
   const [article, setArticle] = useState<ArticleApiData | null>(null);
-  const [articleThemeHex, setArticleThemeHex] = useState<string | null>(null);
-  const [articleThemeAccentHexes, setArticleThemeAccentHexes] = useState<string[]>([]);
-  const [articleSeed, setArticleSeed] = useState<string | null>(null);
+  const [articleBgStaticUrl, setArticleBgStaticUrl] = useState<string | null>(null);
   const [articleRecordTitle, setArticleRecordTitle] = useState<string | null>(null);
   const [articleSubtitle, setArticleSubtitle] = useState<string | null>(null);
   const [articleSummary, setArticleSummary] = useState<string | null>(null);
@@ -163,10 +158,6 @@ function ArticlePage() {
   const [activeTocId, setActiveTocId] = useState<string>("");
   const [titleStuck, setTitleStuck] = useState(false);
   const titleSentinelRef = useRef<HTMLDivElement | null>(null);
-  const articleCoverSeed = useMemo(
-    () => articleSeed ?? `${slug || "article"}|${article?.recordId || "cover"}`,
-    [article?.recordId, articleSeed, slug]
-  );
 
   useEffect(() => {
     setMounted(true);
@@ -234,9 +225,7 @@ function ArticlePage() {
       setStreamComplete(false);
       setError(null);
       setArticle(null);
-      setArticleThemeHex(null);
-      setArticleThemeAccentHexes([]);
-      setArticleSeed(null);
+      setArticleBgStaticUrl(null);
       setArticleRecordTitle(null);
       setArticleSubtitle(null);
       setArticleSummary(null);
@@ -278,15 +267,9 @@ function ArticlePage() {
                 (cachedRecord.fields?.["summary"] as string) ||
                 null
             );
-            setArticleSeed(
-              heroGradientSeedForRecord({
-                record_id: cachedRecord.record_id,
-                fields: cachedRecord.fields as Record<string, unknown>,
-              })
+            setArticleBgStaticUrl(
+              bgStaticAttachmentUrlFromFields(cachedRecord.fields as Record<string, unknown>)
             );
-            const themeHexes = themeHexesFromFields(cachedRecord.fields as Record<string, unknown>);
-            setArticleThemeHex(themeHexes[0] ?? null);
-            setArticleThemeAccentHexes(themeHexes.slice(1));
             docsUrl = pickArticleDocsUrl(cachedRecord.fields as Record<string, unknown>) ?? "";
             documentId = extractDocumentId(docsUrl) ?? "";
           } else {
@@ -317,15 +300,9 @@ function ArticlePage() {
                     (record.fields["summary"] as string) ||
                     null
                 );
-                setArticleSeed(
-                  heroGradientSeedForRecord({
-                    record_id: record.record_id,
-                    fields: record.fields as Record<string, unknown>,
-                  })
+                setArticleBgStaticUrl(
+                  bgStaticAttachmentUrlFromFields(record.fields as Record<string, unknown>)
                 );
-                const themeHexes = themeHexesFromFields(record.fields as Record<string, unknown>);
-                setArticleThemeHex(themeHexes[0] ?? null);
-                setArticleThemeAccentHexes(themeHexes.slice(1));
               } catch {
                 // ignore
               }
@@ -470,9 +447,7 @@ function ArticlePage() {
           articleTitle={articleTitle}
           articleSubtitle={articleSubtitle}
           articleSummary={articleSummary}
-          articleCoverSeed={articleCoverSeed}
-          articleThemeHex={articleThemeHex}
-          articleThemeAccentHexes={articleThemeAccentHexes}
+          articleBgStaticUrl={articleBgStaticUrl}
         />
 
         <div className="relative mt-24 lg:pl-[240px] lg:pr-4">

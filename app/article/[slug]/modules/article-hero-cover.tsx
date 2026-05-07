@@ -1,14 +1,8 @@
 /**
- * 文章 Hero：顶栏操作、参数化 shader 背景、标签/副标题/主标题与摘要文案。
+ * 文章 Hero：顶栏操作、静态封面背景、标签/副标题/主标题与摘要文案。
  */
 import type { RefObject } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-
-const PlaybookHeroShaderBackground = dynamic(
-  () => import("@/app/lark_growth_design_playbook/playbook-hero-shader-bg"),
-  { ssr: false }
-);
 
 type ArticleLike = {
   docsUrl?: string;
@@ -33,9 +27,7 @@ export function ArticleHeroCover({
   articleTitle,
   articleSubtitle,
   articleSummary,
-  articleCoverSeed,
-  articleThemeHex,
-  articleThemeAccentHexes,
+  articleBgStaticUrl,
 }: {
   titleSentinelRef: RefObject<HTMLDivElement | null>;
   stickyVisible: boolean;
@@ -47,9 +39,7 @@ export function ArticleHeroCover({
   articleTitle: string;
   articleSubtitle: string | null;
   articleSummary: string | null;
-  articleCoverSeed: string;
-  articleThemeHex: string | null;
-  articleThemeAccentHexes: string[];
+  articleBgStaticUrl: string | null;
 }) {
   return (
     <div className="-mx-4 mb-6 overflow-hidden border-b border-gray-100 sm:-mx-6 lg:-mx-8">
@@ -109,12 +99,18 @@ export function ArticleHeroCover({
         </div>
       </div>
       <div className="relative z-[5] flex items-center justify-center">
-        <PlaybookHeroShaderBackground
-          seed={articleCoverSeed}
-          themeBaseHex={articleThemeHex}
-          themeAccentHexes={articleThemeAccentHexes}
-          variant="hero"
-          motionPaused={false}
+        <div
+          className="pointer-events-none absolute inset-0 z-0"
+          aria-hidden
+          style={{
+            backgroundColor: "#e7e5e4",
+            backgroundImage: articleBgStaticUrl ? `url('${articleBgStaticUrl}')` : "none",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            transform: "scale(1.06)",
+            transformOrigin: "center",
+          }}
         />
         <div
           ref={titleSentinelRef}
