@@ -153,6 +153,7 @@ const HERO_CARD_GAP_PX = 12;
 const HERO_LOGO_CLEARANCE_PX = 0;
 /** Hero 外框最大宽（90rem 按 16px），比正文区更宽以贴近横幅布局 */
 const HERO_MAX_CONTENT_PX = 90 * 16;
+const PLAYBOOK_MAIN_MAX_CONTENT_PX = 80 * 16;
 
 /**
  * 与 `<main class="mx-auto max-w-7xl px-6 sm:px-8 lg:px-8">` 内容区同宽。
@@ -165,10 +166,27 @@ function playbookMainContentInnerWidthPx(viewportW: number) {
   return Math.max(200, shell - 2 * padX);
 }
 
-/** 卡片态 Hero 高度：视口高度的 1/2（与 `computeHeroLayout` / 全屏↔卡片动画共用） */
-function heroCollapsedHeightPx(viewportH: number) {
+function playbookListContentInnerWidthPx(viewportW: number) {
+  const safeW = Math.max(320, viewportW);
+  const shell = Math.min(PLAYBOOK_MAIN_MAX_CONTENT_PX, safeW);
+  const padX = safeW >= 640 ? 32 : 24;
+  return Math.max(200, shell - 2 * padX);
+}
+
+function playbookGridCardWidthPx(viewportW: number) {
+  const safeW = Math.max(320, viewportW);
+  const contentW = playbookListContentInnerWidthPx(safeW);
+  if (safeW >= 1024) return Math.max(1, (contentW - 2 * 40) / 3);
+  if (safeW >= 640) return Math.max(1, (contentW - 36) / 2);
+  return contentW;
+}
+
+/** 卡片态 Hero 高度：至少高于下方 1:1 列表卡片（与全屏↔卡片动画共用） */
+function heroCollapsedHeightPx(viewportW: number, viewportH: number) {
   const h = Math.max(1, viewportH);
-  return Math.round(h * 0.5);
+  const halfViewportH = Math.round(h * 0.5);
+  const cardH = Math.ceil(playbookGridCardWidthPx(viewportW));
+  return Math.max(halfViewportH, cardH + 1);
 }
 
 function computeHeroLayout(viewportW: number, viewportH: number, p: number) {
@@ -176,7 +194,7 @@ function computeHeroLayout(viewportW: number, viewportH: number, p: number) {
   const safeH = Math.max(480, viewportH);
   const pp = Math.min(1, Math.max(0, p));
   const cardW = playbookMainContentInnerWidthPx(safeW);
-  const collapsedH = heroCollapsedHeightPx(viewportH);
+  const collapsedH = heroCollapsedHeightPx(safeW, viewportH);
   const outerW = (1 - pp) * safeW + pp * cardW;
   const outerH = (1 - pp) * safeH + pp * collapsedH;
   const top = pp * HERO_LOGO_CLEARANCE_PX;
@@ -509,7 +527,7 @@ function PlaybookCardItem({
       }}
     >
       <div
-        className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
+        className="relative aspect-square w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
         onMouseEnter={() => {
           router.prefetch(href);
         }}
@@ -1114,7 +1132,7 @@ function PlaybookPage() {
                   <div className="pointer-events-none absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 bg-white" />
                   <div className="relative mx-auto w-full max-w-7xl px-0">
                     <div className="relative">
-                      <div className="overflow-x-auto">
+                      <div className="overflow-x-auto overflow-y-hidden overscroll-y-none touch-pan-x">
                         <div className="flex w-max min-w-full flex-col items-start gap-2 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-8">
                           <div className="flex items-center gap-5">
                             <button
