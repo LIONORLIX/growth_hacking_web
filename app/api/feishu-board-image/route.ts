@@ -1,6 +1,8 @@
 import { getTenantAccessToken } from "@/lib/feishu/auth";
 
 const BOARD_IMAGE_CACHE_TTL_MS = 10 * 60 * 1000;
+const BOARD_IMAGE_CACHE_CONTROL_HEADER =
+  "public, max-age=300, s-maxage=600, stale-while-revalidate=86400";
 const boardImageCache = new Map<
   string,
   { expiresAt: number; contentType: string; body: ArrayBuffer }
@@ -34,7 +36,7 @@ export async function GET(request: Request) {
         status: 200,
         headers: {
           "Content-Type": cached.contentType,
-          "Cache-Control": "private, max-age=600",
+          "Cache-Control": BOARD_IMAGE_CACHE_CONTROL_HEADER,
         },
       });
     }
@@ -78,7 +80,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "private, max-age=600",
+        "Cache-Control": BOARD_IMAGE_CACHE_CONTROL_HEADER,
       },
     });
   } catch (error) {

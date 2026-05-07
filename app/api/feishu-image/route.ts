@@ -14,6 +14,8 @@ const pendingRequests = new Map<
   string,
   Promise<{ contentType: string; body: ArrayBuffer } | null>
 >();
+const IMAGE_CACHE_CONTROL_HEADER =
+  "public, max-age=300, s-maxage=600, stale-while-revalidate=86400";
 
 function simpleHash(buffer: ArrayBuffer): string {
   const view = new Uint8Array(buffer);
@@ -105,7 +107,7 @@ function sendCachedResponse(
   const etag = simpleHash(body);
   const commonHeaders: Record<string, string> = {
     "Content-Type": contentType,
-    "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
+    "Cache-Control": IMAGE_CACHE_CONTROL_HEADER,
     "Accept-Ranges": "bytes",
     ETag: etag,
   };
@@ -126,6 +128,7 @@ function sendCachedResponse(
       status: 206,
       headers: {
         ...commonHeaders,
+        "Cache-Control": "no-store",
         "Content-Range": `bytes ${range.start}-${range.end}/${totalSize}`,
         "Content-Length": String(chunk.byteLength),
       },
@@ -208,7 +211,7 @@ export async function GET(request: Request) {
           return new Response(null, {
             status: 304,
             headers: {
-              "Cache-Control": "public, max-age=3600, s-maxage=86400",
+              "Cache-Control": IMAGE_CACHE_CONTROL_HEADER,
               ETag: etag,
             },
           });
@@ -229,7 +232,10 @@ export async function GET(request: Request) {
       if (ifNoneMatch) {
         const etag = simpleHash(result.body);
         if (ifNoneMatch === etag) {
-          return new Response(null, { status: 304, headers: { ETag: etag } });
+          return new Response(null, {
+            status: 304,
+            headers: { "Cache-Control": IMAGE_CACHE_CONTROL_HEADER, ETag: etag },
+          });
         }
       }
       return sendCachedResponse(result.body, result.contentType, shouldTransform ? null : rangeHeader);
@@ -261,7 +267,10 @@ export async function GET(request: Request) {
       if (ifNoneMatch) {
         const etag = simpleHash(result.body);
         if (ifNoneMatch === etag) {
-          return new Response(null, { status: 304, headers: { ETag: etag } });
+          return new Response(null, {
+            status: 304,
+            headers: { "Cache-Control": IMAGE_CACHE_CONTROL_HEADER, ETag: etag },
+          });
         }
       }
       return sendCachedResponse(result.body, result.contentType, shouldTransform ? null : rangeHeader);
