@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function AccessPage() {
+function AccessPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
@@ -73,5 +73,13 @@ export default function AccessPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function AccessPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-white" />}>
+      <AccessPageInner />
+    </Suspense>
   );
 }
