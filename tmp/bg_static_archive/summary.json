@@ -1,0 +1,237 @@
+{
+  "processed_count": 0,
+  "skipped_count": 32,
+  "failed_count": 13,
+  "processed": [],
+  "skipped": [
+    [
+      "rec2782JbkSUZ1",
+      "本地化设计助力 Lark 日本增长",
+      "bg_static为空"
+    ],
+    [
+      "recvgaxBGC5n5c",
+      "Lark 首页改版 2025",
+      "bg_static为空"
+    ],
+    [
+      "recvgayQbygWb0",
+      "飞书官网注册&留资实验 2023Q1-Q2 ",
+      "bg_static为空"
+    ],
+    [
+      "recvggczH15PHL",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgLjsXG5SZl",
+      "飞书 SEO/SEM 专项",
+      "bg_static为空"
+    ],
+    [
+      "recvgLju9AnnxS",
+      "AIGC SEO 渠道实践",
+      "bg_static为空"
+    ],
+    [
+      "recvgLjThyVFwT",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgLkxKEuMLD",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgLkyFRKn7B",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgLkAMH78j5",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgMrtTB3OEr",
+      "飞书官网 23Q2 改版设计",
+      "bg_static为空"
+    ],
+    [
+      "recvgMrwxv7S8u",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgMrAa1kndq",
+      "信息流 demo 动效设计",
+      "bg_static为空"
+    ],
+    [
+      "recvgMrSxlhStv",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgMrXetiVo6",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgMs0xKatNt",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgMsagp9RYW",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgMshdrGlPh",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgMsoxYYXaK",
+      "解决方案的价值探索与实践",
+      "bg_static为空"
+    ],
+    [
+      "recvgMszsY5tGy",
+      "抖音自建渠道建设",
+      "bg_static为空"
+    ],
+    [
+      "recvgMsNCEnVVW",
+      "Bezo 官网设计",
+      "bg_static为空"
+    ],
+    [
+      "recvgMsOY9x8Zm",
+      "Bezo 官网设计",
+      "bg_static为空"
+    ],
+    [
+      "recvgMsTlqkTec",
+      "【飞行社】24年0-1建设",
+      "bg_static为空"
+    ],
+    [
+      "recvgMt16KzmY7",
+      "海外 Base unbundle 投放 ",
+      "bg_static为空"
+    ],
+    [
+      "recvgMtb13W4ek",
+      "飞书自助付费",
+      "bg_static为空"
+    ],
+    [
+      "recvgMtcWdecjg",
+      "飞书自助付费",
+      "bg_static为空"
+    ],
+    [
+      "recvgMte27uljC",
+      "飞书自助付费",
+      "bg_static为空"
+    ],
+    [
+      "recvgMu5OLgLhO",
+      "飞书官网转化提升专项-导航&首焦 2025Q4",
+      "bg_static为空"
+    ],
+    [
+      "recvgMunyigLYO",
+      "Lark 小语种轻本土化实验",
+      "bg_static为空"
+    ],
+    [
+      "recvgMuxVjwPFv",
+      null,
+      "bg_static为空"
+    ],
+    [
+      "recvgMuBZGCVlJ",
+      "【飞行社】25 AI板块 改版",
+      "bg_static为空"
+    ],
+    [
+      "recvj0DtxLJ6CV",
+      "Lark Reimagine 2026",
+      "bg_static为空"
+    ]
+  ],
+  "failed": [
+    [
+      "rec2782JbkSP5m",
+      "竞品官网策略研究报告（2025）",
+      "cmd failed: lark-cli drive +download --as user --file-token W0NMbHZdOolwaUxRAZwcb84vnSb --output tmp/bg_static_archive/original/竞品官网策略研究报告（2025）.png --overwrite\nstdout=\nstderr=Downloading: W0NM...vnSb\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "rec2782JbkSSXM",
+      "Lark JP 2025 忘年会",
+      "cmd failed: lark-cli drive +download --as user --file-token FUGabGpMpoM7OTxgdNccRDXZnSd --output tmp/bg_static_archive/original/Lark JP 2025 忘年会.png --overwrite\nstdout=\nstderr=Downloading: FUGa...ZnSd\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgaxBe9nIy3",
+      "Lark 导航改版 2025",
+      "cmd failed: lark-cli drive +download --as user --file-token Qp2SbEBlZoxdQ4xsrbfcZlZgnmh --output tmp/bg_static_archive/original/Lark 导航改版 2025.png --overwrite\nstdout=\nstderr=Downloading: Qp2S...gnmh\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgaxBvwBtFC",
+      "Lark 动图实验",
+      "cmd failed: lark-cli drive +download --as user --file-token VvoYbDuwIo7nzhxFTdHceEVlnrc --output tmp/bg_static_archive/original/Lark 动图实验.png --overwrite\nstdout=\nstderr=Downloading: VvoY...lnrc\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgaxBSWZ7fo",
+      "飞书官网 AI 感知",
+      "cmd failed: lark-cli drive +download --as user --file-token SrZxbUoMDohqf9xsM01cHBqXn0c --output tmp/bg_static_archive/original/飞书官网 AI 感知.png --overwrite\nstdout=\nstderr=Downloading: SrZx...Xn0c\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgECjMQ27FZ",
+      "竞品官网策略研究报告（2024）",
+      "cmd failed: lark-cli drive +download --as user --file-token StbPbGbxCojbgLxMr0ocQugonJe --output tmp/bg_static_archive/original/竞品官网策略研究报告（2024）.png --overwrite\nstdout=\nstderr=Downloading: StbP...onJe\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgFEGO0EitF",
+      "竞品官网策略研究报告（2023）",
+      "cmd failed: lark-cli drive +download --as user --file-token MlUebY8uGoO3FKx1xYTcXLuRnXi --output tmp/bg_static_archive/original/竞品官网策略研究报告（2023）.png --overwrite\nstdout=\nstderr=Downloading: MlUe...RnXi\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgKxuE112Bz",
+      "增长设计调研：Monday",
+      "cmd failed: lark-cli drive +download --as user --file-token TROqbUlmBo39v0xGUfxcde0nnwG --output tmp/bg_static_archive/original/增长设计调研：Monday.png --overwrite\nstdout=\nstderr=Downloading: TROq...nnwG\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgLjGLTlYbC",
+      "自媒体 AI 短视频实践",
+      "cmd failed: lark-cli drive +download --as user --file-token O1C7baRTpokL9DxoprScAm8Xnoc --output tmp/bg_static_archive/original/自媒体 AI 短视频实践.png --overwrite\nstdout=\nstderr=Downloading: O1C7...Xnoc\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgLrJ7lnapT",
+      "设计转型 AI+ 工作模式",
+      "cmd failed: lark-cli drive +download --as user --file-token ZzgPbZn1JoF83MxzDwWcIQ9pnag --output tmp/bg_static_archive/original/设计转型 AI+ 工作模式.png --overwrite\nstdout=\nstderr=Downloading: ZzgP...pnag\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgMrMkDp2fD",
+      "UG H5 活动营销增长",
+      "cmd failed: lark-cli drive +download --as user --file-token IYOvbyeCpoJWrRxrqzpc1FrEnVe --output tmp/bg_static_archive/original/UG H5 活动营销增长.png --overwrite\nstdout=\nstderr=Downloading: IYOv...EnVe\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgMtOkdIN9P",
+      "飞书登录态改版",
+      "cmd failed: lark-cli drive +download --as user --file-token GZENb6P88orwr3x6C8tcJRSPnle --output tmp/bg_static_archive/original/飞书登录态改版.png --overwrite\nstdout=\nstderr=Downloading: GZEN...Pnle\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ],
+    [
+      "recvgMucVAGMWR",
+      "Lark 行业解决方案页",
+      "cmd failed: lark-cli drive +download --as user --file-token YCdNbCSvaoUgqex9Me9cAwrvnUg --output tmp/bg_static_archive/original/Lark 行业解决方案页.png --overwrite\nstdout=\nstderr=Downloading: YCdN...vnUg\n{\n  \"ok\": false,\n  \"identity\": \"user\",\n  \"error\": {\n    \"type\": \"network\",\n    \"message\": \"download failed: HTTP 403: \"\n  }\n}\n"
+    ]
+  ],
+  "archive_original_dir": "tmp/bg_static_archive/original",
+  "archive_720p_dir": "tmp/bg_static_archive/720p"
+}

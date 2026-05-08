@@ -114,7 +114,7 @@ export function ArticleHeroCover({
         />
         <div
           ref={titleSentinelRef}
-          className="relative z-10 mx-auto max-w-[1024px] px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8 lg:py-32"
+          className="relative z-10 mx-auto max-w-[980px] px-4 py-14 text-center sm:px-6 sm:py-20 lg:px-8 lg:py-24"
         >
           {!article ? (
             <div className="mb-4 flex items-center justify-center gap-2">
@@ -129,12 +129,12 @@ export function ArticleHeroCover({
           ) : null}
 
           {article && articleSubtitle?.trim() && articleRecordTitle?.trim() ? (
-            <p className="mt-6 mb-3 text-center text-[20px] font-semibold tracking-tight text-white/90">
+            <p className="mt-4 mb-2 text-center text-[0.98rem] font-semibold tracking-tight text-white/90 sm:text-[1.04rem]">
               {articleRecordTitle}
             </p>
           ) : null}
 
-          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
+          <h1 className="text-[1.56rem] font-extrabold tracking-tight text-white sm:text-[1.9rem] lg:text-[2.08rem] lg:leading-[1.16]">
             {!article ? (
               <span className="mx-auto block h-10 w-2/3 animate-pulse rounded bg-white/25" />
             ) : articleSubtitle?.trim() ? (
@@ -145,7 +145,7 @@ export function ArticleHeroCover({
           </h1>
 
           {article && articleSummary?.trim() ? (
-            <p className="mx-auto mt-6 max-w-[700px] py-6 text-center text-base font-semibold leading-relaxed text-white/90">
+            <p className="mx-auto mt-4 max-w-[660px] py-4 text-center text-[0.88rem] font-semibold leading-relaxed text-white/90 sm:text-[0.92rem]">
               {articleSummary}
             </p>
           ) : null}

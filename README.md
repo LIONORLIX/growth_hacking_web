@@ -10,6 +10,13 @@
   - `app/article/[slug]/page.tsx`：文章详情页（流式加载、目录、正文模块化渲染）
 - 首页重定向：`app/page.tsx` 会直接跳到 `"/lark_growth_design_playbook"`。
 
+## 访问密码开关（简单版）
+
+- 在 `.env` 中设置 `ACCESS_PASSWORD=你的密码` 后，站点会启用访问限制。
+- 未通过验证的访问会被重定向到 `"/access"` 输入密码。
+- 当前保护范围：Playbook 列表页、文章页，以及文章数据相关 API（`/api/playbook`、`/api/article`、图片代理接口）。
+- 不设置 `ACCESS_PASSWORD` 则不启用访问限制（保持现状）。
+
 ## 2. 顶层目录速览
 
 - `app/`：页面与 API Route（核心）

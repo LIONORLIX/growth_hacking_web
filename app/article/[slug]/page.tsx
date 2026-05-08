@@ -431,7 +431,7 @@ function ArticlePage() {
           backgroundPosition: "center center",
         }}
       />
-      <div className="relative w-full px-4 sm:px-6 lg:px-8">
+      <div className="relative w-full px-3 sm:px-5 lg:px-6">
         <ArticleStickyTitleBar
           visible={titleStuck}
           articleTitle={stickyBarTitle}
@@ -453,7 +453,7 @@ function ArticlePage() {
         <div className="relative mt-24 lg:pl-[240px] lg:pr-4">
           <ArticleTocAside tocItems={tocItems} activeTocId={activeTocId} />
 
-          <article className="mx-auto max-w-[720px]">
+          <article className="mx-auto max-w-[860px]">
             {loading && !article && <ArticleBodyPreviewSkeleton />}
 
             {article && (
