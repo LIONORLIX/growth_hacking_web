@@ -181,6 +181,9 @@ function readHeroSpVisual(anim: HeroSnapAnim, spRef: { current: number }, now: n
 const HERO_CARD_GAP_PX = 12;
 /** 卡片顶相对 Hero 外包层的 offset（px），与 `heroLayout.top` 一致；0 表示贴齐内容区顶边 */
 const HERO_LOGO_CLEARANCE_PX = 0;
+/** Hero 不低于视口的 55%，并设置固定最小高度 */
+const HERO_MIN_HEIGHT_RATIO = 0.45;
+const HERO_MIN_HEIGHT_PX = 420;
 /** Hero 外框最大宽（90rem 按 16px），比正文区更宽以贴近横幅布局 */
 const HERO_MAX_CONTENT_PX = 90 * 16;
 const PLAYBOOK_MAIN_MAX_CONTENT_PX = 80 * 16;
@@ -240,9 +243,9 @@ function firstArticleImageFromApiData(data: unknown): string | null {
 /** 卡片态 Hero 高度：至少高于下方 4:3 横向列表封面（与全屏↔卡片动画共用） */
 function heroCollapsedHeightPx(viewportW: number, viewportH: number) {
   const h = Math.max(1, viewportH);
-  const halfViewportH = Math.round(h * 0.5);
+  const minViewportH = Math.round(h * HERO_MIN_HEIGHT_RATIO);
   const cardH = Math.ceil(playbookGridCardWidthPx(viewportW) * 0.75);
-  return Math.max(halfViewportH, cardH + 1);
+  return Math.max(minViewportH, HERO_MIN_HEIGHT_PX, cardH + 1);
 }
 
 function computeHeroLayout(viewportW: number, viewportH: number, p: number) {
@@ -307,12 +310,49 @@ type PlaybookHeroSlidesCardChromeProps = {
   heroSlides: BaseRecord[];
   activeHeroSlide: number;
   stripEmojiFn: (value: string) => string;
+  onSelectSlide: (index: number) => void;
 };
+
+function PlaybookHeroSlideBars({
+  count,
+  activeIndex,
+  onSelect,
+  className,
+}: {
+  count: number;
+  activeIndex: number;
+  onSelect: (index: number) => void;
+  className?: string;
+}) {
+  if (count <= 1) return null;
+  return (
+    <div className={className}>
+      <div className="flex items-center justify-center gap-2">
+        {Array.from({ length: count }).map((_, index) => {
+          const active = index === activeIndex;
+          return (
+            <button
+              key={`hero-bar-${index}`}
+              type="button"
+              onClick={() => onSelect(index)}
+              aria-label={`切换到第 ${index + 1} 条 highlight`}
+              aria-pressed={active}
+              className={`h-1.5 rounded-full transition-all duration-300 ease-out ${
+                active ? "w-9 bg-white/95" : "w-5 bg-white/45 hover:bg-white/70"
+              }`}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function PlaybookHeroSlidesCardChrome({
   heroSlides,
   activeHeroSlide,
   stripEmojiFn,
+  onSelectSlide,
 }: PlaybookHeroSlidesCardChromeProps) {
   if (heroSlides.length === 0) return null;
 
@@ -361,7 +401,12 @@ function PlaybookHeroSlidesCardChrome({
             </Link>
           </div>
         </div>
-
+        <PlaybookHeroSlideBars
+          count={heroSlides.length}
+          activeIndex={activeHeroSlide}
+          onSelect={onSelectSlide}
+          className="pointer-events-auto absolute inset-x-0 bottom-4 z-30"
+        />
       </div>
     </div>
   );
@@ -372,6 +417,7 @@ type PlaybookHeroSlidesFullscreenChromeProps = {
   activeHeroSlide: number;
   stripEmojiFn: (value: string) => string;
   onEnterCardMode: () => void;
+  onSelectSlide: (index: number) => void;
 };
 
 function PlaybookHeroSlidesFullscreenChrome({
@@ -379,6 +425,7 @@ function PlaybookHeroSlidesFullscreenChrome({
   activeHeroSlide,
   stripEmojiFn,
   onEnterCardMode,
+  onSelectSlide,
 }: PlaybookHeroSlidesFullscreenChromeProps) {
   if (heroSlides.length === 0) return null;
 
@@ -461,6 +508,12 @@ function PlaybookHeroSlidesFullscreenChrome({
             </Link>
           </div>
         </div>
+        <PlaybookHeroSlideBars
+          count={heroSlides.length}
+          activeIndex={activeHeroSlide}
+          onSelect={onSelectSlide}
+          className="pointer-events-auto absolute inset-x-0 bottom-8 z-30"
+        />
       </div>
     </div>
   );
@@ -872,6 +925,7 @@ function PlaybookPage() {
 
   const visibleItems = filteredItems();
   const HERO_LATEST_COUNT = 5;
+  const HERO_AUTOPLAY_MS = 5200;
   const heroSlides = latestRecordsForHero(data?.items ?? [], HERO_LATEST_COUNT);
   const heroSlidesKey = heroSlides.map((h) => h.record_id).join(",");
   const activeHeroBgRecord =
@@ -912,6 +966,14 @@ function PlaybookPage() {
       setActiveHeroSlide(0);
     }
   }, [heroSlides.length, activeHeroSlide]);
+
+  useEffect(() => {
+    if (heroSlides.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setActiveHeroSlide((prev) => (prev + 1) % heroSlides.length);
+    }, HERO_AUTOPLAY_MS);
+    return () => window.clearInterval(timer);
+  }, [heroSlides.length, heroSlidesKey, HERO_AUTOPLAY_MS]);
 
   useEffect(() => {
     const syncViewport = () =>
@@ -1181,6 +1243,7 @@ function PlaybookPage() {
                             activeHeroSlide={activeHeroSlide}
                             stripEmojiFn={stripEmoji}
                             onEnterCardMode={() => beginHeroSnap(1)}
+                            onSelectSlide={setActiveHeroSlide}
                           />
                         </div>
                       </div>
@@ -1233,6 +1296,7 @@ function PlaybookPage() {
                         heroSlides={heroSlides}
                         activeHeroSlide={activeHeroSlide}
                         stripEmojiFn={stripEmoji}
+                        onSelectSlide={setActiveHeroSlide}
                       />
                     </div>
                   </div>

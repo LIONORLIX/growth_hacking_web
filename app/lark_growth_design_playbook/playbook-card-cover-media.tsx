@@ -21,6 +21,12 @@ type AttachmentLike = {
 
 const MOTION_FIELD_KEYS = ["Motion", "motion", "MOTION"] as const;
 const COVER_FIELD_KEYS = ["Cover", "cover", "COVER"] as const;
+const COMPRESSED_COVER_FIELD_KEYS = [
+  "Compressed Cover",
+  "compressed_cover",
+  "compressedCover",
+  "COMPRESSED_COVER",
+] as const;
 const BG_STATIC_FIELD_KEYS = ["bg_static", "BgStatic", "BG_STATIC", "bgStatic"] as const;
 
 function pickRawField(
@@ -198,11 +204,18 @@ export function coverAttachmentUrlFromFields(fields: {
 
 /** 供列表兜底背景：bg_static 首张图在 `<img/background-image>` 上可用地址 */
 export function bgStaticAttachmentUrlFromFields(fields: {
+  ["Compressed Cover"]?: AttachmentLike[] | null;
   bg_static?: AttachmentLike[] | null;
   [key: string]: unknown;
 }): string | null {
-  const { raw } = pickRawField(fields as Record<string, unknown>, BG_STATIC_FIELD_KEYS);
-  return driveMediasProxySrcFromAttachmentRaw(raw);
+  const map = fields as Record<string, unknown>;
+  // 新链路优先读取压缩封面；空值时回退旧字段 bg_static。
+  const compressed = pickRawField(map, COMPRESSED_COVER_FIELD_KEYS);
+  const compressedUrl = driveMediasProxySrcFromAttachmentRaw(compressed.raw);
+  if (compressedUrl) return compressedUrl;
+
+  const bgStatic = pickRawField(map, BG_STATIC_FIELD_KEYS);
+  return driveMediasProxySrcFromAttachmentRaw(bgStatic.raw);
 }
 
 /**
