@@ -181,8 +181,8 @@ function readHeroSpVisual(anim: HeroSnapAnim, spRef: { current: number }, now: n
 const HERO_CARD_GAP_PX = 12;
 /** 卡片顶相对 Hero 外包层的 offset（px），与 `heroLayout.top` 一致；0 表示贴齐内容区顶边 */
 const HERO_LOGO_CLEARANCE_PX = 0;
-/** Hero 不低于视口的 55%，并设置固定最小高度 */
-const HERO_MIN_HEIGHT_RATIO = 0.45;
+/** Hero 不低于视口的 50%，并设置固定最小高度 */
+const HERO_MIN_HEIGHT_RATIO = 0.5;
 const HERO_MIN_HEIGHT_PX = 420;
 /** Hero 外框最大宽（90rem 按 16px），比正文区更宽以贴近横幅布局 */
 const HERO_MAX_CONTENT_PX = 90 * 16;

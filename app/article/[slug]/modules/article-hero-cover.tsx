@@ -123,18 +123,18 @@ export function ArticleHeroCover({
               <span className="h-6 w-20 animate-pulse rounded-full bg-white/60" />
             </div>
           ) : coverMetaText.trim() ? (
-            <p className="mb-3 text-center text-sm font-medium tracking-wide text-white/70 sm:text-base">
+            <p className="mb-3 text-center text-base font-medium tracking-wide text-white/70 sm:text-lg">
               {coverMetaText}
             </p>
           ) : null}
 
           {article && articleSubtitle?.trim() && articleRecordTitle?.trim() ? (
-            <p className="mt-4 mb-2 text-center text-[0.98rem] font-semibold tracking-tight text-white/90 sm:text-[1.04rem]">
+            <p className="mt-4 mb-2 text-center text-[1.08rem] font-semibold tracking-tight text-white/90 sm:text-[1.18rem]">
               {articleRecordTitle}
             </p>
           ) : null}
 
-          <h1 className="text-[1.56rem] font-extrabold tracking-tight text-white sm:text-[1.9rem] lg:text-[2.08rem] lg:leading-[1.16]">
+          <h1 className="text-[1.9rem] font-extrabold tracking-tight text-white sm:text-[2.3rem] lg:text-[2.7rem] lg:leading-[1.16]">
             {!article ? (
               <span className="mx-auto block h-10 w-2/3 animate-pulse rounded bg-white/25" />
             ) : articleSubtitle?.trim() ? (
@@ -145,7 +145,7 @@ export function ArticleHeroCover({
           </h1>
 
           {article && articleSummary?.trim() ? (
-            <p className="mx-auto mt-4 max-w-[660px] py-4 text-center text-[0.88rem] font-semibold leading-relaxed text-white/90 sm:text-[0.92rem]">
+            <p className="mx-auto mt-4 max-w-[660px] py-4 text-center text-[1rem] font-semibold leading-relaxed text-white/90 sm:text-[1.08rem]">
               {articleSummary}
             </p>
           ) : null}
