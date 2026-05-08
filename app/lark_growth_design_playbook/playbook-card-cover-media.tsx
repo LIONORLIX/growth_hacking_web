@@ -52,6 +52,22 @@ function firstAttachmentRow(raw: unknown): AttachmentLike | null {
   return first as AttachmentLike;
 }
 
+/**
+ * 本地静态封面优先：使用仓库内 `public/bg_static_archive/compressed_720x720/*.jpg`。
+ * 约定：文件名与飞书附件名同 basename（扩展名统一为 .jpg）。
+ */
+function localCompressedCoverSrcFromAttachmentRaw(
+  raw: unknown,
+): string | null {
+  const row = firstAttachmentRow(raw);
+  if (!row) return null;
+  const rawName = row.name || row.file?.name || "";
+  if (!rawName.trim()) return null;
+  const baseName = rawName.replace(/\.[^.]+$/, "").trim();
+  if (!baseName) return null;
+  return `/bg_static_archive/compressed_720x720/${encodeURIComponent(baseName)}.jpg`;
+}
+
 /** 从飞书「需鉴权」的 drive open-apis 链接里取 file_token（如 batch_get_tmp_download_url?file_tokens=） */
 function feishuFileTokenFromOpenApiUrl(url: string): string | null {
   try {
@@ -212,6 +228,8 @@ export function bgStaticAttachmentUrlFromFields(fields: {
   // 新链路优先读取压缩封面；空值时回退旧字段 bg_static。
   const compressed = pickRawField(map, COMPRESSED_COVER_FIELD_KEYS);
   const compressedUrl = driveMediasProxySrcFromAttachmentRaw(compressed.raw);
+  const localCompressedUrl = localCompressedCoverSrcFromAttachmentRaw(compressed.raw);
+  if (localCompressedUrl) return localCompressedUrl;
   if (compressedUrl) return compressedUrl;
 
   const bgStatic = pickRawField(map, BG_STATIC_FIELD_KEYS);
