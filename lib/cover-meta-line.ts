@@ -47,10 +47,14 @@ export function formatCoverMetaLine(
 
   const segments: string[] = [];
 
-  const category = fields.Category ?? fields.category;
-  if (typeof category === "string" && category.trim()) {
-    const t = take(category.trim());
-    if (t) segments.push(t);
+  const categoryRaw = fields.Category ?? fields.category;
+  const categories: string[] = [];
+  for (const c of flattenFieldToTagStrings(categoryRaw)) {
+    const t = take(c);
+    if (t) categories.push(t);
+  }
+  if (categories.length) {
+    segments.push(categories.join(" · "));
   }
 
   const regions: string[] = [];

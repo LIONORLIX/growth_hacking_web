@@ -44,7 +44,8 @@ type BaseRecord = {
   last_modified_time?: number | string;
   fields: {
     Title?: string;
-    Category?: string;
+    Category?: string | string[];
+    category?: string | string[];
     Region?: string[];
     /** 多选标签等，与 Region 一并纳入元信息展示 */
     Tags?: unknown;
@@ -97,6 +98,26 @@ function playbookFieldString(
     if (typeof raw === "string" && raw.trim()) return raw.trim();
   }
   return "";
+}
+
+function playbookFieldStringList(value: unknown): string[] {
+  if (value == null) return [];
+  if (typeof value === "string") {
+    const t = value.trim();
+    return t ? [t] : [];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap(playbookFieldStringList);
+  }
+  if (typeof value === "object") {
+    const o = value as Record<string, unknown>;
+    return [o.text, o.name, o.label, o.value].flatMap(playbookFieldStringList);
+  }
+  return [];
+}
+
+function playbookCategoriesFromFields(fields: BaseRecord["fields"]): string[] {
+  return playbookFieldStringList(fields.Category ?? fields.category);
 }
 
 /**
@@ -813,8 +834,8 @@ function PlaybookPage() {
     if (!data?.items) return [];
     const categories = new Set<string>();
     data.items.forEach((item) => {
-      if (item.fields.Category) {
-        categories.add(item.fields.Category);
+      for (const category of playbookCategoriesFromFields(item.fields)) {
+        categories.add(category);
       }
     });
     return Array.from(categories);
@@ -834,7 +855,8 @@ function PlaybookPage() {
   const filteredItems = () => {
     if (!data?.items) return [];
     return data.items.filter((item) => {
-      const categoryMatch = !selectedCategory || item.fields.Category === selectedCategory;
+      const categoryMatch =
+        !selectedCategory || playbookCategoriesFromFields(item.fields).includes(selectedCategory);
       const regionMatch = !selectedRegion || 
         (item.fields.Region && item.fields.Region.includes(selectedRegion));
       return categoryMatch && regionMatch;
