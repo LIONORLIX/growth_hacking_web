@@ -21,6 +21,13 @@ type AttachmentLike = {
 
 const MOTION_FIELD_KEYS = ["Motion", "motion", "MOTION"] as const;
 const COVER_FIELD_KEYS = ["Cover", "cover", "COVER"] as const;
+const HOVER_IMAGE_FIELD_KEYS = [
+  "Hover Image",
+  "hover_image",
+  "hoverImage",
+  "HoverImage",
+  "HOVER_IMAGE",
+] as const;
 const COMPRESSED_COVER_FIELD_KEYS = [
   "Compressed Cover",
   "compressed_cover",
@@ -224,6 +231,16 @@ export function coverAttachmentUrlFromFields(fields: {
   [key: string]: unknown;
 }): string | null {
   const { raw } = pickRawField(fields as Record<string, unknown>, COVER_FIELD_KEYS);
+  return driveMediasProxySrcFromAttachmentRaw(raw);
+}
+
+/** 供列表 hover 图：Hover Image 首张图在 `<img src>` 上可用地址 */
+export function hoverImageAttachmentUrlFromFields(fields: {
+  ["Hover Image"]?: AttachmentLike[] | null;
+  hover_image?: AttachmentLike[] | null;
+  [key: string]: unknown;
+}): string | null {
+  const { raw } = pickRawField(fields as Record<string, unknown>, HOVER_IMAGE_FIELD_KEYS);
   return driveMediasProxySrcFromAttachmentRaw(raw);
 }
 

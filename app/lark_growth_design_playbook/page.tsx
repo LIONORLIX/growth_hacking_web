@@ -18,7 +18,10 @@ import { PlaybookFullscreenPathTracers } from "@/app/lark_growth_design_playbook
 import { formatCoverMetaLine } from "@/lib/cover-meta-line";
 import { getPlaybookAppToken, getPlaybookTableId } from "@/lib/playbook-data-source";
 import { itemHasHeroHighlight, itemHasPublishedStatus } from "@/lib/playbook-status";
-import { bgStaticAttachmentUrlFromFields } from "./playbook-card-cover-media";
+import {
+  bgStaticAttachmentUrlFromFields,
+  hoverImageAttachmentUrlFromFields,
+} from "./playbook-card-cover-media";
 import { ErrorBoundary } from "@/app/components/error-boundary";
 
 const BR_TAG_REGEX = /<br\s*\/?>/gi;
@@ -183,7 +186,7 @@ const HERO_CARD_GAP_PX = 12;
 const HERO_LOGO_CLEARANCE_PX = 0;
 /** Hero 不低于视口的 50%，并设置固定最小高度 */
 const HERO_MIN_HEIGHT_RATIO = 0.5;
-const HERO_CARD_HEIGHT_PX = 400;
+const HERO_CARD_HEIGHT_PX = 450;
 /** Hero 外框最大宽（90rem 按 16px），比正文区更宽以贴近横幅布局 */
 const HERO_MAX_CONTENT_PX = 90 * 16;
 
@@ -630,6 +633,7 @@ function PlaybookCardItem({
     item.fields as Record<string, unknown>,
     stripEmoji
   );
+  const hoverImageUrl = hoverImageAttachmentUrlFromFields(item.fields as Record<string, unknown>);
   const cardBgStaticUrl = bgStaticAttachmentUrlFromFields(item.fields as Record<string, unknown>);
   const href = useMemo(
     () =>
@@ -647,6 +651,13 @@ function PlaybookCardItem({
     }
     if (previewRequestStartedRef.current) return;
     previewRequestStartedRef.current = true;
+
+    if (hoverImageUrl) {
+      const preview = { summary: cardSummary, firstImageUrl: hoverImageUrl };
+      cardArticlePreviewCache.set(item.record_id, preview);
+      setArticlePreview(preview);
+      return;
+    }
 
     setArticlePreview({ summary: cardSummary, firstImageUrl: null });
 
@@ -673,7 +684,7 @@ function PlaybookCardItem({
       .catch(() => {
         previewRequestStartedRef.current = false;
       });
-  }, [cardSummary, href, item.record_id, router]);
+  }, [cardSummary, hoverImageUrl, href, item.record_id, router]);
 
   return (
     <Link
@@ -686,7 +697,7 @@ function PlaybookCardItem({
       }}
     >
       <div
-        className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
+        className="relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-xl transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform group-hover:scale-[1.02]"
         onMouseEnter={loadArticlePreview}
       >
         <PlaybookCardCover
@@ -708,7 +719,7 @@ function PlaybookCardItem({
             alt=""
             loading="lazy"
             decoding="async"
-            className="pointer-events-none absolute inset-0 z-20 h-full w-full object-cover opacity-0 grayscale transition-opacity duration-300 ease-out group-hover:opacity-100"
+            className="pointer-events-none absolute inset-0 z-20 h-full w-full object-cover opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
             aria-hidden
           />
         ) : null}
