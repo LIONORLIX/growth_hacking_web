@@ -622,9 +622,12 @@ function PlaybookCardItem({
   const cardSummary = stripBrTags(
     playbookFieldString(item.fields, "Summary", "summary")
   );
+  const hoverImageUrl = hoverImageAttachmentUrlFromFields(item.fields as Record<string, unknown>);
   const cardMainHeadline = cardTitle || cardSubtitle || "Untitled";
   const [articlePreview, setArticlePreview] = useState<CardArticlePreview>(() => {
     const cached = cardArticlePreviewCache.get(item.record_id);
+    if (cached) return cached;
+    if (hoverImageUrl) return { summary: cardSummary, firstImageUrl: hoverImageUrl };
     return cached ?? { summary: cardSummary, firstImageUrl: null };
   });
   const cardPreviewSummary = articlePreview.summary || cardSummary || cardSubtitle || cardTitle;
@@ -633,7 +636,6 @@ function PlaybookCardItem({
     item.fields as Record<string, unknown>,
     stripEmoji
   );
-  const hoverImageUrl = hoverImageAttachmentUrlFromFields(item.fields as Record<string, unknown>);
   const cardBgStaticUrl = bgStaticAttachmentUrlFromFields(item.fields as Record<string, unknown>);
   const href = useMemo(
     () =>
@@ -685,6 +687,18 @@ function PlaybookCardItem({
         previewRequestStartedRef.current = false;
       });
   }, [cardSummary, hoverImageUrl, href, item.record_id, router]);
+
+  useEffect(() => {
+    if (!hoverImageUrl) return;
+    const preview = { summary: cardSummary, firstImageUrl: hoverImageUrl };
+    cardArticlePreviewCache.set(item.record_id, preview);
+    setArticlePreview(preview);
+    if (typeof window !== "undefined") {
+      const img = new window.Image();
+      img.decoding = "async";
+      img.src = hoverImageUrl;
+    }
+  }, [cardSummary, hoverImageUrl, item.record_id]);
 
   return (
     <Link
