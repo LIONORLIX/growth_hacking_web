@@ -183,27 +183,31 @@ const HERO_CARD_GAP_PX = 12;
 const HERO_LOGO_CLEARANCE_PX = 0;
 /** Hero 不低于视口的 50%，并设置固定最小高度 */
 const HERO_MIN_HEIGHT_RATIO = 0.5;
-const HERO_MIN_HEIGHT_PX = 420;
+const HERO_CARD_HEIGHT_PX = 400;
 /** Hero 外框最大宽（90rem 按 16px），比正文区更宽以贴近横幅布局 */
 const HERO_MAX_CONTENT_PX = 90 * 16;
-const PLAYBOOK_MAIN_MAX_CONTENT_PX = 80 * 16;
+
+/** 与首屏外包层 `px-3 sm:px-4 lg:px-6` 一致，供布局计算与 CSS 对齐 */
+function playbookHorizontalPaddingPx(viewportW: number) {
+  const w = Math.max(320, viewportW);
+  if (w >= 1024) return 24;
+  if (w >= 640) return 16;
+  return 12;
+}
 
 /**
- * 与 `<main class="mx-auto max-w-7xl px-6 sm:px-8 lg:px-8">` 内容区同宽。
- * 全屏动画最后一帧仍用该宽度；切到卡片 DOM 后 header 受 `max-width:100%` 约束，若此处偏大则收尾会横向跳变。
+ * 与首屏 `mx-auto max-w-[90rem] px-3 sm:px-4 lg:px-6` 内容区内宽一致。
+ * 全屏动画最后一帧仍用该宽度；列表区与之相同，避免 Hero 与卡片栅格宽度错位。
  */
 function playbookMainContentInnerWidthPx(viewportW: number) {
   const safeW = Math.max(320, viewportW);
   const shell = Math.min(HERO_MAX_CONTENT_PX, safeW);
-  const padX = safeW >= 640 ? 32 : 24;
+  const padX = playbookHorizontalPaddingPx(safeW);
   return Math.max(200, shell - 2 * padX);
 }
 
 function playbookListContentInnerWidthPx(viewportW: number) {
-  const safeW = Math.max(320, viewportW);
-  const shell = Math.min(PLAYBOOK_MAIN_MAX_CONTENT_PX, safeW);
-  const padX = safeW >= 640 ? 32 : 24;
-  return Math.max(200, shell - 2 * padX);
+  return playbookMainContentInnerWidthPx(viewportW);
 }
 
 function playbookGridCardWidthPx(viewportW: number) {
@@ -242,10 +246,9 @@ function firstArticleImageFromApiData(data: unknown): string | null {
 
 /** 卡片态 Hero 高度：至少高于下方 4:3 横向列表封面（与全屏↔卡片动画共用） */
 function heroCollapsedHeightPx(viewportW: number, viewportH: number) {
-  const h = Math.max(1, viewportH);
-  const minViewportH = Math.round(h * HERO_MIN_HEIGHT_RATIO);
-  const cardH = Math.ceil(playbookGridCardWidthPx(viewportW) * 0.75);
-  return Math.max(minViewportH, HERO_MIN_HEIGHT_PX, cardH + 1);
+  void viewportW;
+  void viewportH;
+  return HERO_CARD_HEIGHT_PX;
 }
 
 function computeHeroLayout(viewportW: number, viewportH: number, p: number) {
@@ -337,7 +340,7 @@ function PlaybookHeroSlideBars({
               onClick={() => onSelect(index)}
               aria-label={`切换到第 ${index + 1} 条 highlight`}
               aria-pressed={active}
-              className={`h-1.5 rounded-full transition-all duration-300 ease-out ${
+              className={`h-1.5 cursor-pointer rounded-full transition-all duration-300 ease-out ${
                 active ? "w-9 bg-white/95" : "w-5 bg-white/45 hover:bg-white/70"
               }`}
             />
@@ -1318,12 +1321,12 @@ function PlaybookPage() {
 
             {playbookChromeFullscreen ? (
               <main
-                className="mx-auto max-w-7xl pointer-events-none invisible m-0 max-h-0 min-h-0 overflow-hidden border-0 p-0 opacity-0 px-6 py-10 sm:px-8 sm:py-10 lg:px-8"
+                className="mx-auto max-w-[90rem] pointer-events-none invisible m-0 max-h-0 min-h-0 overflow-hidden border-0 p-0 opacity-0 px-3 py-10 sm:px-4 sm:py-10 lg:px-6"
                 aria-hidden
               />
             ) : (
               <main
-                className="mx-auto max-w-7xl px-6 pb-10 pt-0 sm:px-8 sm:pb-10 lg:px-8"
+                className="mx-auto w-full max-w-[90rem] px-3 pb-10 pt-6 sm:px-4 sm:pb-10 lg:px-6"
                 aria-hidden={false}
               >
                 <div
@@ -1334,14 +1337,14 @@ function PlaybookPage() {
                   style={{ top: 0 }}
                 >
                   <div className="pointer-events-none absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 bg-white" />
-                  <div className="relative mx-auto w-full max-w-7xl px-0">
+                  <div className="relative mx-auto w-full px-0">
                     <div className="relative">
                       <div className="overflow-x-auto overflow-y-hidden overscroll-y-none touch-pan-x">
-                        <div className="flex w-max min-w-full flex-col items-start gap-2 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+                        <div className="flex w-max min-w-full flex-col items-start gap-2 pt-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-8">
                           <div className="flex items-center gap-5">
                             <button
                               onClick={() => setSelectedCategory(null)}
-                              className={`-mb-px min-h-[44px] border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
+                              className={`-mb-px min-h-[44px] cursor-pointer border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
                                 !selectedCategory
                                   ? "border-stone-900 font-semibold text-stone-900"
                                   : "border-transparent text-stone-500 hover:text-stone-900"
@@ -1353,7 +1356,7 @@ function PlaybookPage() {
                               <button
                                 key={category}
                                 onClick={() => setSelectedCategory(category)}
-                                className={`-mb-px min-h-[44px] border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
+                                className={`-mb-px min-h-[44px] cursor-pointer border-b-2 px-1 pb-2.5 pt-2 transition-colors ${
                                   selectedCategory === category
                                     ? "border-stone-900 font-semibold text-stone-900"
                                     : "border-transparent text-stone-500 hover:text-stone-900"
@@ -1367,7 +1370,7 @@ function PlaybookPage() {
                           <div className="flex items-center gap-2 pb-2.5 sm:pl-2">
                             <button
                               onClick={() => setSelectedRegion(null)}
-                              className={`rounded-full px-3 py-2 text-xs transition-colors ${
+                              className={`cursor-pointer rounded-full px-3 py-2 text-xs transition-colors ${
                                 !selectedRegion
                                   ? "bg-stone-100 text-stone-700"
                                   : "text-stone-400 hover:text-stone-700"
@@ -1379,7 +1382,7 @@ function PlaybookPage() {
                               <button
                                 key={region}
                                 onClick={() => setSelectedRegion(region)}
-                                className={`rounded-full px-3 py-2 text-xs transition-colors ${
+                                className={`cursor-pointer rounded-full px-3 py-2 text-xs transition-colors ${
                                   selectedRegion === region
                                     ? "bg-stone-100 text-stone-700"
                                     : "text-stone-400 hover:text-stone-700"
@@ -1418,7 +1421,7 @@ function PlaybookPage() {
                       >
                         <div
                           key={cardGridRevealEpoch}
-                          className="grid grid-cols-1 gap-8 pt-8 sm:grid-cols-2 sm:gap-9 lg:grid-cols-3 lg:gap-10"
+                          className="grid grid-cols-1 gap-8 pt-4 sm:grid-cols-2 sm:gap-9 lg:grid-cols-3 lg:gap-10"
                         >
                           {visibleItems.map((item, i) => (
                             <PlaybookCardItem
@@ -1447,7 +1450,7 @@ function PlaybookPage() {
             }`}
             aria-hidden={playbookChromeFullscreen}
           >
-            <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-sm text-stone-500 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-6 sm:px-8 lg:px-8">
+            <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-2 px-3 py-6 text-sm text-stone-500 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-6 sm:px-4 lg:px-6">
               <p>© {new Date().getFullYear()} Lark Growth Design Playbook</p>
               <p>Built for growth stories and design insights.</p>
             </div>
