@@ -68,6 +68,15 @@ function localCompressedCoverSrcFromAttachmentRaw(
   return `/bg_static_archive/compressed_720x720/${encodeURIComponent(baseName)}.jpg`;
 }
 
+/** 无附件字段时，按 Title/title 兜底匹配本地封面。 */
+function localCompressedCoverSrcFromTitle(fields: Record<string, unknown>): string | null {
+  const rawTitle = fields.Title ?? fields.title;
+  if (typeof rawTitle !== "string") return null;
+  const baseName = rawTitle.trim();
+  if (!baseName) return null;
+  return `/bg_static_archive/compressed_720x720/${encodeURIComponent(baseName)}.jpg`;
+}
+
 /** 从飞书「需鉴权」的 drive open-apis 链接里取 file_token（如 batch_get_tmp_download_url?file_tokens=） */
 function feishuFileTokenFromOpenApiUrl(url: string): string | null {
   try {
@@ -233,7 +242,10 @@ export function bgStaticAttachmentUrlFromFields(fields: {
   if (compressedUrl) return compressedUrl;
 
   const bgStatic = pickRawField(map, BG_STATIC_FIELD_KEYS);
-  return driveMediasProxySrcFromAttachmentRaw(bgStatic.raw);
+  const bgStaticUrl = driveMediasProxySrcFromAttachmentRaw(bgStatic.raw);
+  if (bgStaticUrl) return bgStaticUrl;
+
+  return localCompressedCoverSrcFromTitle(map);
 }
 
 /**
