@@ -507,7 +507,7 @@ export function PlaybookCardCoverMedia({
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          filter: "blur(5px)",
+          filter: "blur(10px)",
           transform: "scale(1.04)",
         }}
       />
@@ -544,7 +544,7 @@ export function PlaybookCardCoverMedia({
               ? "transition-opacity duration-300 ease-out group-hover:opacity-0"
               : ""
           }`}
-          style={{ filter: "blur(5px)", transform: "scale(1.04)" }}
+          style={{ filter: "blur(10px)", transform: "scale(1.04)" }}
           aria-hidden
           onError={() => {
             setCoverBroken(true);

@@ -110,7 +110,7 @@ export function ArticleHeroCover({
             backgroundRepeat: "no-repeat",
             transform: "scale(1.06)",
             transformOrigin: "center",
-            filter: "blur(5px)",
+            filter: "blur(10px)",
           }}
         />
         <div
