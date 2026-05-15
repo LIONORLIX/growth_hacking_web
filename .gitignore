@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+*.figma
 @scripts
 @tmp
 scripts/

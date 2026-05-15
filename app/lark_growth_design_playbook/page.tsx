@@ -505,7 +505,7 @@ function PlaybookHeroSlidesFullscreenChrome({
             </h1>
             <Link
               href={copyHref}
-              className="mt-8 inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-stone-900 transition-[opacity,transform] duration-200 ease-out hover:opacity-95 active:scale-[0.98]"
+              className="mt-8 inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-white transition-[opacity,transform] duration-200 ease-out hover:opacity-95 active:scale-[0.98]"
             >
               阅读全文
               <span aria-hidden className="translate-y-px">
